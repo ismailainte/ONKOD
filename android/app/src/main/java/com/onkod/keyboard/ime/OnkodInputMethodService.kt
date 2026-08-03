@@ -5,7 +5,7 @@ import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import com.onkod.keyboard.MainActivity
+import com.onkod.keyboard.SettingsActivity
 
 class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener {
     private lateinit var settingsStore: SettingsStore
@@ -117,7 +117,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     }
 
     private fun openSettings() {
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, SettingsActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("screen", "settings")
         startActivity(intent)

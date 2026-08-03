@@ -1,44 +1,26 @@
 # Onkod Keyboard
 
-Onkod Keyboard is an Android-first Somali system keyboard MVP. The app shell is built with React Native, Expo, and TypeScript. The real keyboard is implemented natively in Kotlin with Android `InputMethodService`, because Expo Go cannot register or run an Android system keyboard.
+Onkod Keyboard is a native Android Kotlin system keyboard for Somali typing. It is implemented as a real Android Input Method Editor (IME), so users can enable it in Android keyboard settings and type inside other apps such as Messages, WhatsApp, Chrome, Notes, and normal text fields.
+
+The project is now Kotlin-first. React Native and Expo were removed because the actual keyboard must be native Android, and keeping the app shell native makes the build simpler and less fragile.
 
 ## Architecture
 
-- Expo app: onboarding, setup, keyboard preview, settings, privacy, and about screens.
-- Native bridge: Android-only React Native module for opening input-method settings, showing the picker, checking enabled status, and sharing settings.
-- Native IME: Kotlin keyboard service and view used inside WhatsApp, Messages, Chrome, Notes, and other Android text fields.
-- Expo config plugin: `plugins/withOnkodKeyboard.js` preserves IME manifest, XML configuration, and native Kotlin templates during prebuild.
+- `MainActivity`: native Kotlin onboarding and setup screen.
+- `SettingsActivity`: native Kotlin settings screen.
+- `OnkodInputMethodService`: Android IME service.
+- `OnkodKeyboardView`: native keyboard UI built with Android views.
+- `KeyboardLayouts`: Somali QWERTY, ASHERTY, and symbols data.
+- `SettingsStore`: local SharedPreferences settings shared by app screens and IME.
 
 ## Requirements
 
-- Node.js and npm.
-- Expo Development Build.
-- Android Studio with Android SDK 35 or newer compatible SDK.
+- Android Studio.
 - JDK 17.
+- Android SDK with API 35 installed.
 - Android device or emulator.
 
-Expo Go is not supported for the final runtime.
-
-## Local Development
-
-```bash
-npm install
-npx expo-doctor
-npx tsc --noEmit
-npm test
-npx expo prebuild --clean
-npx expo run:android
-```
-
-To build from the generated Android project:
-
-```bash
-cd android
-./gradlew test
-./gradlew assembleDebug
-```
-
-On Windows:
+## Build
 
 ```powershell
 cd android
@@ -46,13 +28,21 @@ cd android
 .\gradlew.bat assembleDebug
 ```
 
-## Enable The Keyboard
+On macOS/Linux:
 
-1. Install the development build or debug APK.
+```bash
+cd android
+./gradlew test
+./gradlew assembleDebug
+```
+
+## Install And Enable
+
+1. Build or install the debug APK.
 2. Open Onkod Keyboard.
 3. Tap **Open keyboard settings** and enable Onkod Keyboard.
 4. Tap **Show keyboard picker** and select Onkod Keyboard.
-5. Choose QWERTY or ASHERTY in settings.
+5. Open Onkod settings to choose layout, theme, number row, toolbar, vibration, sound, and long-press delay.
 6. Start typing in another Android app.
 
 ## Layouts
@@ -105,7 +95,7 @@ Onkod Keyboard processes key presses locally. The MVP has no cloud service, no a
 
 ## Known MVP Limitations
 
-- Android only; iOS keyboard extension is future work.
+- Android only.
 - Emoji panel has a small starter set.
 - Clipboard history is intentionally not implemented.
 - Somali suggestions and autocorrect are future local-only features.

@@ -11,7 +11,6 @@ import android.view.MotionEvent
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 
 class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     interface Listener {
@@ -22,7 +21,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     var listener: Listener? = null
     private var settings: KeyboardSettings = KeyboardSettings()
-    private val vibrator = ContextCompat.getSystemService(context, Vibrator::class.java)
+    private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
     init {
         orientation = VERTICAL

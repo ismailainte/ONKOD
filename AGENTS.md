@@ -2,36 +2,26 @@
 
 ## Architecture
 
-- Expo Router app screens live in `app/`.
-- Shared TypeScript keyboard data lives in `src/keyboard/`.
-- Native React Native bridge code lives in `android/app/src/main/java/com/onkod/keyboard/nativebridge/`.
+- Native Android app lives under `android/`.
+- Kotlin app screens live in `android/app/src/main/java/com/onkod/keyboard/`.
 - Android IME code lives in `android/app/src/main/java/com/onkod/keyboard/ime/`.
-- Expo Prebuild IME preservation lives in `plugins/withOnkodKeyboard.js`.
+- Android resources live in `android/app/src/main/res/`.
+- Unit tests live in `android/app/src/test/`.
 
 ## Commands
 
-- Install: `npm install`
-- Typecheck: `npx tsc --noEmit`
-- JS tests: `npm test`
-- Expo validation: `npx expo-doctor`
-- Prebuild: `npx expo prebuild --clean`
 - Android tests: `cd android && ./gradlew test`
 - Android debug build: `cd android && ./gradlew assembleDebug`
-- Windows Gradle: use `gradlew.bat`.
+- Windows tests: `cd android; .\gradlew.bat test`
+- Windows debug build: `cd android; .\gradlew.bat assembleDebug`
 
 ## Coding Conventions
 
-- Use TypeScript for React Native app code.
-- Use Kotlin for Android native code.
+- Use Kotlin for app screens and IME code.
+- Build keyboard UI with native Android views.
 - Keep keyboard layouts as data models.
-- Keep native keyboard behavior out of React Native preview components.
-- Keep changes scoped and avoid unrelated refactors.
-
-## Expo Prebuild Rules
-
-- Do not rely on undocumented manual edits to generated Android files.
-- Preserve IME manifest, XML configuration, and native templates through `plugins/withOnkodKeyboard.js`.
-- Expo Go is not a valid final runtime for this project.
+- Keep settings in `SettingsStore`.
+- Do not reintroduce React Native, Expo, Flutter, WebView, analytics, ads, or networking for MVP typing behavior.
 
 ## Somali Layout Invariants
 
