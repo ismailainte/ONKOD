@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Expo and Metro
+.expo/
+.expo-shared/
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# JavaScript outputs
+dist/
+web-build/
+coverage/
+
+# Android build outputs and local state
+build/
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/local.properties
+local.properties
+
+# Native debug artifacts and signing secrets
+*.apk
+*.aab
+*.ap_
+*.keystore
+*.jks
+*.p8
+*.p12
+*.key
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Keep Gradle wrapper and Android source committed.
+!android/gradle/wrapper/gradle-wrapper.jar
+!android/gradlew
+!android/gradlew.bat

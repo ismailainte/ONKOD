@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Onkod Keyboard</string>
+    <string name="ime_name">Onkod Keyboard</string>
+    <string name="ime_settings_activity">com.onkod.keyboard.MainActivity</string>
+</resources>
