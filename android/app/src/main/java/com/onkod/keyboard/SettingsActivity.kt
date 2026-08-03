@@ -1,116 +1,110 @@
 package com.onkod.keyboard
 
-import android.app.Activity
 import android.os.Bundle
-import android.view.Gravity
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.ScrollView
-import android.widget.Switch
-import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.onkod.keyboard.ime.KeyboardSettings
-import com.onkod.keyboard.ime.LayoutType
+import com.onkod.keyboard.ime.LanguageMode
+import com.onkod.keyboard.ime.LayoutGroup
 import com.onkod.keyboard.ime.LongPressDelay
 import com.onkod.keyboard.ime.SettingsStore
 import com.onkod.keyboard.ime.ThemeMode
 
-class SettingsActivity : Activity() {
+class SettingsActivity : ComponentActivity() {
     private lateinit var store: SettingsStore
-    private var settings = KeyboardSettings()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "Onkod Settings"
         store = SettingsStore(this)
-        settings = store.read()
-        setContentView(contentView())
+        setContent { SettingsApp() }
     }
 
-    private fun contentView(): ScrollView {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24.dp, 24.dp, 24.dp, 24.dp)
+    @Composable
+    private fun SettingsApp() {
+        var settings by remember { mutableStateOf(store.read()) }
+        fun save(next: KeyboardSettings) {
+            settings = store.write(next)
         }
-        layout.addView(TextView(this).apply {
-            text = "Settings"
-            textSize = 28f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(0xFF111827.toInt())
-        })
-        layout.addView(section("Layout"))
-        layout.addView(radioGroup(
-            values = listOf("QWERTY" to LayoutType.QWERTY, "ASHERTY" to LayoutType.ASHERTY),
-            selected = settings.layout,
-            onSelected = { save(settings.copy(layout = it)) }
-        ))
-        layout.addView(section("Theme"))
-        layout.addView(radioGroup(
-            values = listOf("System" to ThemeMode.SYSTEM, "Light" to ThemeMode.LIGHT, "Dark" to ThemeMode.DARK),
-            selected = settings.theme,
-            onSelected = { save(settings.copy(theme = it)) }
-        ))
-        layout.addView(section("Long-press delay"))
-        layout.addView(radioGroup(
-            values = listOf("Normal" to LongPressDelay.NORMAL, "Short" to LongPressDelay.SHORT, "Long" to LongPressDelay.LONG),
-            selected = settings.longPressDelay,
-            onSelected = { save(settings.copy(longPressDelay = it)) }
-        ))
-        layout.addView(toggle("Number row", settings.numberRow) { save(settings.copy(numberRow = it)) })
-        layout.addView(toggle("Toolbar", settings.toolbar) { save(settings.copy(toolbar = it)) })
-        layout.addView(toggle("Key vibration", settings.vibration) { save(settings.copy(vibration = it)) })
-        layout.addView(toggle("Key sound", settings.sound) { save(settings.copy(sound = it)) })
-        layout.addView(toggle("Show key preview", settings.keyPreview) { save(settings.copy(keyPreview = it)) })
-        layout.addView(Button(this).apply {
-            text = "Done"
-            setOnClickListener { finish() }
-        })
-        return ScrollView(this).apply { addView(layout) }
-    }
-
-    private fun save(next: KeyboardSettings) {
-        settings = store.write(next)
-    }
-
-    private fun section(title: String): TextView =
-        TextView(this).apply {
-            text = title
-            textSize = 18f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(0xFF111827.toInt())
-            setPadding(0, 20.dp, 0, 8.dp)
-        }
-
-    private fun <T> radioGroup(values: List<Pair<String, T>>, selected: T, onSelected: (T) -> Unit): RadioGroup =
-        RadioGroup(this).apply {
-            orientation = RadioGroup.VERTICAL
-            values.forEachIndexed { index, pair ->
-                addView(RadioButton(this@SettingsActivity).apply {
-                    id = index + 1
-                    text = pair.first
-                    isChecked = pair.second == selected
-                    setOnClickListener { onSelected(pair.second) }
-                })
+        MaterialTheme {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Choice("Layout group", settings.layoutGroup, listOf(
+                        "QWERTY: Somali + English" to LayoutGroup.QWERTY,
+                        "ASHERTY: Somali + Français" to LayoutGroup.ASHERTY
+                    )) { save(settings.copy(layoutGroup = it)) }
+                    Choice("Default QWERTY language", settings.qwertyLanguage, listOf(
+                        "Somali" to LanguageMode.SOMALI,
+                        "English" to LanguageMode.ENGLISH
+                    )) { save(settings.copy(qwertyLanguage = it)) }
+                    Choice("Default ASHERTY language", settings.ashertyLanguage, listOf(
+                        "Somali" to LanguageMode.SOMALI,
+                        "Français" to LanguageMode.FRENCH
+                    )) { save(settings.copy(ashertyLanguage = it)) }
+                    Choice("Theme", settings.theme, listOf(
+                        "System" to ThemeMode.SYSTEM,
+                        "Light" to ThemeMode.LIGHT,
+                        "Dark" to ThemeMode.DARK
+                    )) { save(settings.copy(theme = it)) }
+                    Choice("Long-press delay", settings.longPressDelay, listOf(
+                        "Short" to LongPressDelay.SHORT,
+                        "Normal" to LongPressDelay.NORMAL,
+                        "Long" to LongPressDelay.LONG
+                    )) { save(settings.copy(longPressDelay = it)) }
+                    Toggle("Number row", settings.numberRow) { save(settings.copy(numberRow = it)) }
+                    Toggle("Toolbar", settings.toolbar) { save(settings.copy(toolbar = it)) }
+                    Toggle("Key vibration", settings.vibration) { save(settings.copy(vibration = it)) }
+                    Toggle("Key sound", settings.sound) { save(settings.copy(sound = it)) }
+                    Toggle("Show key preview", settings.keyPreview) { save(settings.copy(keyPreview = it)) }
+                    Button(onClick = { finish() }, modifier = Modifier.fillMaxWidth()) { Text("Done") }
+                }
             }
         }
+    }
 
-    private fun toggle(label: String, checked: Boolean, onChanged: (Boolean) -> Unit): LinearLayout =
-        LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 12.dp, 0, 12.dp)
-            addView(TextView(this@SettingsActivity).apply {
-                text = label
-                textSize = 16f
-                setTextColor(0xFF111827.toInt())
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
-            addView(Switch(this@SettingsActivity).apply {
-                isChecked = checked
-                setOnCheckedChangeListener { _, value -> onChanged(value) }
-            })
+    @Composable
+    private fun <T> Choice(title: String, selected: T, values: List<Pair<String, T>>, onSelected: (T) -> Unit) {
+        Text(title, fontWeight = FontWeight.Bold)
+        values.forEach { pair ->
+            androidx.compose.foundation.layout.Row {
+                RadioButton(selected = pair.second == selected, onClick = { onSelected(pair.second) })
+                Text(pair.first, modifier = Modifier.padding(top = 12.dp))
+            }
         }
+    }
 
-    private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
+    @Composable
+    private fun Toggle(label: String, checked: Boolean, onChanged: (Boolean) -> Unit) {
+        androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth()) {
+            Text(label, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+            Switch(checked = checked, onCheckedChange = onChanged)
+        }
+    }
 }

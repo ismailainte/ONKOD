@@ -56,7 +56,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 emojiVisible = false
                 render()
             }
-            KeyAction.Globe -> switchInputMethod()
+            KeyAction.Globe -> switchInternalLanguage()
             KeyAction.HideKeyboard -> requestHideSelf(0)
             KeyAction.EmojiPanel -> {
                 emojiVisible = true
@@ -75,6 +75,10 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
 
     override fun onBackspaceHoldEnd() {
         backspaceRepeater.stop()
+    }
+
+    override fun onGlobeLongPress() {
+        showInputMethodPicker()
     }
 
     private fun commitText(value: String) {
@@ -107,13 +111,17 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         render()
     }
 
-    private fun switchInputMethod() {
+    private fun switchInternalLanguage() {
+        settings = settingsStore.write(settings.nextInternalLanguage())
+        symbolsVisible = false
+        emojiVisible = false
+        shiftState = ShiftState.LOWERCASE
+        render()
+    }
+
+    private fun showInputMethodPicker() {
         val manager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            switchToNextInputMethod(false)
-        } else {
-            manager.showInputMethodPicker()
-        }
+        manager.showInputMethodPicker()
     }
 
     private fun openSettings() {
@@ -124,7 +132,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     }
 
     private fun render() {
-        val layout = KeyboardLayouts.forType(settings.layout)
+        val layout = KeyboardLayouts.forMode(settings.activeMode())
         keyboardView.render(
             layout = layout,
             settings = settings,

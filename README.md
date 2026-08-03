@@ -1,53 +1,25 @@
 # Onkod Keyboard
 
-Onkod Keyboard is a native Android Kotlin system keyboard for Somali typing. It is implemented as a real Android Input Method Editor (IME), so users can enable it in Android keyboard settings and type inside other apps such as Messages, WhatsApp, Chrome, Notes, and normal text fields.
+Onkod is an Android-only native Kotlin system keyboard for Somali, English, and French typing. The launcher and settings screens use Jetpack Compose, while the actual keyboard is an Android `InputMethodService` built with native Android views so it works in other apps.
 
-The project is now Kotlin-first. React Native and Expo were removed because the actual keyboard must be native Android, and keeping the app shell native makes the build simpler and less fragile.
+## Supported Modes
 
-## Architecture
+- `SOMALI_QWERTY`
+- `ENGLISH_QWERTY`
+- `SOMALI_ASHERTY`
+- `FRENCH_AZERTY`
 
-- `MainActivity`: native Kotlin onboarding and setup screen.
-- `SettingsActivity`: native Kotlin settings screen.
-- `OnkodInputMethodService`: Android IME service.
-- `OnkodKeyboardView`: native keyboard UI built with Android views.
-- `KeyboardLayouts`: Somali QWERTY, ASHERTY, and symbols data.
-- `SettingsStore`: local SharedPreferences settings shared by app screens and IME.
+## Language Switching
 
-## Requirements
-
-- Android Studio.
-- JDK 17.
-- Android SDK with API 35 installed.
-- Android device or emulator.
-
-## Build
-
-```powershell
-cd android
-.\gradlew.bat test
-.\gradlew.bat assembleDebug
-```
-
-On macOS/Linux:
-
-```bash
-cd android
-./gradlew test
-./gradlew assembleDebug
-```
-
-## Install And Enable
-
-1. Build or install the debug APK.
-2. Open Onkod Keyboard.
-3. Tap **Open keyboard settings** and enable Onkod Keyboard.
-4. Tap **Show keyboard picker** and select Onkod Keyboard.
-5. Open Onkod settings to choose layout, theme, number row, toolbar, vibration, sound, and long-press delay.
-6. Start typing in another Android app.
+- QWERTY group switches only between Somali and English.
+- ASHERTY group switches only between Somali ASHERTY and French AZERTY.
+- Tap the globe key to switch the internal language for the selected group.
+- Long-press the globe key to open the Android input-method picker.
+- QWERTY remembers its last active language independently from ASHERTY.
 
 ## Layouts
 
-QWERTY:
+Somali QWERTY:
 
 ```text
 1 2 3 4 5 6 7 8 9 0
@@ -57,7 +29,17 @@ Shift SH X C DH B N M Backspace
 !#1 Globe Somali . Hide
 ```
 
-ASHERTY:
+English QWERTY:
+
+```text
+1 2 3 4 5 6 7 8 9 0
+Q W E R T Y U I O P
+A S D F G H J K L
+Shift Z X C V B N M Backspace
+!#1 Globe English . Hide
+```
+
+Somali ASHERTY:
 
 ```text
 1 2 3 4 5 6 7 8 9 0
@@ -67,40 +49,68 @@ Shift W X C DH B N Backspace
 !#1 Globe Somali . Hide
 ```
 
-Symbols:
+French AZERTY:
 
 ```text
 1 2 3 4 5 6 7 8 9 0
-@ # $ % & - + ( ) /
-* " ' : ; ! ?
-, . _ = < >
-ABC Somali Enter Backspace
+A Z E R T Y U I O P
+Q S D F G H J K L M
+Shift W X C V B N Backspace
+!#1 Globe Français . Hide
 ```
+
+French long-press accents:
+
+- `A`: `à`, `â`, `æ`
+- `C`: `ç`
+- `E`: `é`, `è`, `ê`, `ë`
+- `I`: `î`, `ï`
+- `O`: `ô`, `œ`
+- `U`: `ù`, `û`, `ü`
+- `Y`: `ÿ`
 
 ## Somali Rules
 
-- Primary Somali layouts do not show `P`, `V`, or `Z`.
-- `P` is replaced by `KH`.
-- `V` is replaced by `DH`.
-- `Z` is replaced by `SH`.
+- Somali layouts do not display primary `P`, `V`, or `Z`.
+- `P` position is replaced by `KH`.
+- `V` position is replaced by `DH`.
+- `Z` position is replaced by `SH`.
 - `SH`, `DH`, and `KH` commit normal Latin sequences.
-- Lowercase commits `sh`, `dh`, and `kh`.
-- Shift commits `Sh`, `Dh`, and `Kh`.
-- Caps Lock commits `SH`, `DH`, and `KH`.
-- The spacebar label is exactly `Somali`.
+- Lowercase commits `sh`, `dh`, `kh`.
+- Shift commits `Sh`, `Dh`, `Kh`.
+- Caps Lock commits `SH`, `DH`, `KH`.
+
+## Build
+
+```powershell
+cd android
+.\gradlew.bat test
+.\gradlew.bat lint
+.\gradlew.bat assembleDebug
+```
+
+The debug APK is generated at:
+
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+## Install
+
+```powershell
+adb install android\app\build\outputs\apk\debug\app-debug.apk
+adb shell monkey -p com.onkod.keyboard 1
+```
+
+Then enable Onkod in Android keyboard settings and select it from the input-method picker.
 
 ## Privacy
 
-Onkod Keyboard processes key presses locally. The MVP has no cloud service, no analytics, no advertising, and no account system. Typed text is sent only to the active Android text field through Android's input APIs. Settings are stored locally. Clipboard history is not enabled and clipboard contents are not read automatically.
+Onkod V1 processes typing locally. It does not upload typed text, log typed text, include analytics, show ads, require an account, automatically store clipboard history, or use an accessibility service.
 
-## Known MVP Limitations
+## Known V1 Limitations
 
 - Android only.
-- Emoji panel has a small starter set.
-- Clipboard history is intentionally not implemented.
-- Somali suggestions and autocorrect are future local-only features.
-- The keyboard UI is portrait-first.
-
-## License
-
-A final license has not been selected yet. See `LICENSE`.
+- Clipboard history is a placeholder.
+- Emoji panel is intentionally small.
+- Settings currently use shared native storage so the IME can read them synchronously.

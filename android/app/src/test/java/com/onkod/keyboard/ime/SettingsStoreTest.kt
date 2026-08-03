@@ -6,8 +6,11 @@ import org.junit.Test
 class SettingsStoreTest {
     @Test
     fun parsesSettingValuesSafely() {
-        assertEquals(LayoutType.ASHERTY, "asherty".toLayoutType())
-        assertEquals(LayoutType.QWERTY, "unknown".toLayoutType())
+        assertEquals(LayoutGroup.ASHERTY, "asherty".toLayoutGroup())
+        assertEquals(LayoutGroup.QWERTY, "unknown".toLayoutGroup())
+        assertEquals(LanguageMode.ENGLISH, "english".toLanguageMode())
+        assertEquals(LanguageMode.FRENCH, "french".toLanguageMode())
+        assertEquals(LanguageMode.SOMALI, "unknown".toLanguageMode())
         assertEquals(ThemeMode.DARK, "dark".toThemeMode())
         assertEquals(ThemeMode.SYSTEM, "unknown".toThemeMode())
         assertEquals(LongPressDelay.SHORT, "short".toLongPressDelay())

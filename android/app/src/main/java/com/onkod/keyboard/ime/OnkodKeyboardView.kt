@@ -8,6 +8,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.view.Gravity
 import android.view.MotionEvent
+import android.widget.PopupWindow
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -17,10 +18,12 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         fun onKey(action: KeyAction)
         fun onBackspaceHoldStart()
         fun onBackspaceHoldEnd()
+        fun onGlobeLongPress()
     }
 
     var listener: Listener? = null
     private var settings: KeyboardSettings = KeyboardSettings()
+    private var activeLongPressOptions: Map<String, List<String>> = emptyMap()
     private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
     init {
@@ -36,6 +39,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         emojiVisible: Boolean
     ) {
         this.settings = settings
+        activeLongPressOptions = layout.longPressOptions
         removeAllViews()
         val palette = palette(settings.theme)
         setBackgroundColor(palette.background)
@@ -156,7 +160,47 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                     }
                 }
             }
+            if (key.action == KeyAction.Globe) {
+                setOnLongClickListener {
+                    listener?.onGlobeLongPress()
+                    true
+                }
+            }
+            if (key.action is KeyAction.Text) {
+                val options = activeLongPressOptions[key.label.uppercase()].orEmpty()
+                if (options.isNotEmpty()) {
+                    setOnLongClickListener {
+                        showAccentPopup(this, options)
+                        true
+                    }
+                }
+            }
         }
+
+    private fun showAccentPopup(anchor: TextView, options: List<String>) {
+        val row = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            setPadding(6.dp, 6.dp, 6.dp, 6.dp)
+            setBackgroundColor(0xFF111827.toInt())
+        }
+        val popup = PopupWindow(row, LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, true)
+        options.forEach { option ->
+            row.addView(TextView(context).apply {
+                text = option
+                textSize = 20f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                minWidth = 44.dp
+                minHeight = 44.dp
+                setOnClickListener {
+                    listener?.onKey(KeyAction.Text(option))
+                    popup.dismiss()
+                }
+            })
+        }
+        popup.isOutsideTouchable = true
+        popup.showAsDropDown(anchor, 0, -anchor.height * 2)
+    }
 
     private fun displayLabel(label: String, shiftState: ShiftState): String =
         if (shiftState == ShiftState.LOWERCASE) label.lowercase() else label.uppercase()

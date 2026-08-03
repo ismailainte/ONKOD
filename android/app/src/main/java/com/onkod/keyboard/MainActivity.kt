@@ -1,83 +1,163 @@
 package com.onkod.keyboard
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
-import android.view.Gravity
 import android.view.inputmethod.InputMethodManager
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.onkod.keyboard.ime.KeyboardLayouts
+import com.onkod.keyboard.ime.KeyboardMode
+import com.onkod.keyboard.ime.LayoutGroup
+import com.onkod.keyboard.ime.SettingsStore
 
-class MainActivity : Activity() {
-    private lateinit var statusText: TextView
+class MainActivity : ComponentActivity() {
+    private lateinit var store: SettingsStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = getString(R.string.app_name)
-        setContentView(contentView())
+        store = SettingsStore(this)
+        setContent { OnkodApp() }
     }
 
-    override fun onResume() {
-        super.onResume()
-        updateStatus()
+    @Composable
+    private fun OnkodApp() {
+        var screen by remember { mutableStateOf(Screen.WELCOME) }
+        MaterialTheme {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    when (screen) {
+                        Screen.WELCOME -> WelcomeScreen { screen = Screen.ENABLE }
+                        Screen.ENABLE -> EnableScreen(
+                            enabled = isKeyboardEnabled(),
+                            onOpenSettings = { startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) },
+                            onNext = { screen = Screen.SELECT }
+                        )
+                        Screen.SELECT -> SelectKeyboardScreen(
+                            onPicker = {
+                                val manager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                                manager.showInputMethodPicker()
+                            },
+                            onNext = { screen = Screen.LAYOUT }
+                        )
+                        Screen.LAYOUT -> LayoutSelectionScreen(
+                            onSettings = { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) },
+                            onPreview = { screen = Screen.PREVIEW }
+                        )
+                        Screen.PREVIEW -> PreviewScreen(
+                            onSettings = { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) },
+                            onPrivacy = { screen = Screen.PRIVACY },
+                            onAbout = { screen = Screen.ABOUT }
+                        )
+                        Screen.PRIVACY -> PrivacyScreen { screen = Screen.PREVIEW }
+                        Screen.ABOUT -> AboutScreen { screen = Screen.PREVIEW }
+                    }
+                }
+            }
+        }
     }
 
-    private fun contentView(): ScrollView {
-        statusText = TextView(this).apply {
-            textSize = 16f
-            setTextColor(0xFF334155.toInt())
-            gravity = Gravity.CENTER
-        }
-
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24.dp, 28.dp, 24.dp, 28.dp)
-            gravity = Gravity.CENTER_HORIZONTAL
-        }
-
-        layout.addView(TextView(this).apply {
-            text = "Onkod Keyboard"
-            textSize = 32f
-            setTextColor(0xFF111827.toInt())
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-        })
-        layout.addView(TextView(this).apply {
-            text = "Somali system keyboard for Android. Enable it, select it, choose QWERTY or ASHERTY, then start typing."
-            textSize = 16f
-            setTextColor(0xFF475569.toInt())
-            gravity = Gravity.CENTER
-            setPadding(0, 12.dp, 0, 18.dp)
-        })
-        layout.addView(statusText)
-        layout.addView(step("1", "Enable Onkod Keyboard", "Open Android keyboard settings and enable Onkod."))
-        layout.addView(button("Open keyboard settings") {
-            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
-        })
-        layout.addView(step("2", "Select Onkod Keyboard", "Pick Onkod from the Android input-method picker."))
-        layout.addView(button("Show keyboard picker") {
-            val manager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            manager.showInputMethodPicker()
-        })
-        layout.addView(step("3", "Choose layout and theme", "Configure QWERTY or ASHERTY, light/dark/system theme, toolbar, vibration, and sound."))
-        layout.addView(button("Open Onkod settings") {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        })
-        layout.addView(step("4", "Privacy", "Onkod processes key presses locally. The MVP has no analytics, account, ads, or cloud typing service."))
-
-        return ScrollView(this).apply { addView(layout) }
+    @Composable
+    private fun WelcomeScreen(onContinue: () -> Unit) {
+        Text("Onkod", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+        Text("Onkod Keyboard is designed for Somali, English, and French typing on Android.")
+        Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
     }
 
-    private fun updateStatus() {
-        statusText.text = if (isKeyboardEnabled()) {
-            "Status: Onkod Keyboard is enabled"
-        } else {
-            "Status: Onkod Keyboard is not enabled yet"
+    @Composable
+    private fun EnableScreen(enabled: Boolean, onOpenSettings: () -> Unit, onNext: () -> Unit) {
+        Heading("Enable Keyboard")
+        Text(if (enabled) "Onkod appears to be enabled." else "Onkod Keyboard is not enabled yet.")
+        Button(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) { Text("Open Android keyboard settings") }
+        OutlinedButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("Next") }
+    }
+
+    @Composable
+    private fun SelectKeyboardScreen(onPicker: () -> Unit, onNext: () -> Unit) {
+        Heading("Select Keyboard")
+        Text("Open the Android input-method picker and select Onkod Keyboard.")
+        Button(onClick = onPicker, modifier = Modifier.fillMaxWidth()) { Text("Show keyboard picker") }
+        OutlinedButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("Next") }
+    }
+
+    @Composable
+    private fun LayoutSelectionScreen(onSettings: () -> Unit, onPreview: () -> Unit) {
+        Heading("Select Layout Group")
+        Text("QWERTY switches only between Somali and English.")
+        Text("ASHERTY switches only between Somali and Français.")
+        Button(onClick = onSettings, modifier = Modifier.fillMaxWidth()) { Text("Open settings") }
+        OutlinedButton(onClick = onPreview, modifier = Modifier.fillMaxWidth()) { Text("Preview keyboards") }
+    }
+
+    @Composable
+    private fun PreviewScreen(onSettings: () -> Unit, onPrivacy: () -> Unit, onAbout: () -> Unit) {
+        Heading("Keyboard Preview")
+        Text("Preview only. The actual keyboard is the native Android IME.")
+        listOf(
+            KeyboardMode.SOMALI_QWERTY,
+            KeyboardMode.ENGLISH_QWERTY,
+            KeyboardMode.SOMALI_ASHERTY,
+            KeyboardMode.FRENCH_AZERTY
+        ).forEach { mode ->
+            val layout = KeyboardLayouts.forMode(mode)
+            Text("${mode.name}: ${layout.spaceLabel}", fontWeight = FontWeight.Bold)
+            Text(layout.letterRows.joinToString("\n") { row -> row.joinToString(" ") { it.label } })
+            Spacer(Modifier.height(8.dp))
         }
+        Button(onClick = onSettings, modifier = Modifier.fillMaxWidth()) { Text("Settings") }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onPrivacy, modifier = Modifier.weight(1f)) { Text("Privacy") }
+            OutlinedButton(onClick = onAbout, modifier = Modifier.weight(1f)) { Text("About") }
+        }
+    }
+
+    @Composable
+    private fun PrivacyScreen(onBack: () -> Unit) {
+        Heading("Privacy")
+        Text("Typed input is delivered to the active Android text field. Settings are stored locally. Onkod V1 has no account, analytics, advertising, cloud typing service, accessibility service, or clipboard history.")
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+    }
+
+    @Composable
+    private fun AboutScreen(onBack: () -> Unit) {
+        Heading("About")
+        Text("Onkod Keyboard V1 is an Android-only native Kotlin system keyboard for Somali, English, and French.")
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+    }
+
+    @Composable
+    private fun Heading(text: String) {
+        Text(text, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
     }
 
     private fun isKeyboardEnabled(): Boolean {
@@ -85,30 +165,5 @@ class MainActivity : Activity() {
         return enabled.contains(packageName)
     }
 
-    private fun step(number: String, title: String, body: String): LinearLayout =
-        LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, 18.dp, 0, 8.dp)
-            addView(TextView(this@MainActivity).apply {
-                text = "$number. $title"
-                textSize = 18f
-                setTextColor(0xFF111827.toInt())
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-            })
-            addView(TextView(this@MainActivity).apply {
-                text = body
-                textSize = 15f
-                setTextColor(0xFF475569.toInt())
-                setPadding(0, 4.dp, 0, 0)
-            })
-        }
-
-    private fun button(label: String, action: () -> Unit): Button =
-        Button(this).apply {
-            text = label
-            minHeight = 52.dp
-            setOnClickListener { action() }
-        }
-
-    private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
+    private enum class Screen { WELCOME, ENABLE, SELECT, LAYOUT, PREVIEW, PRIVACY, ABOUT }
 }
