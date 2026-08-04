@@ -38,7 +38,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         shiftState: ShiftState,
         symbolsVisible: Boolean,
         emojiVisible: Boolean,
-        activeEmojiCategory: EmojiCategory
+        activeEmojiCategory: EmojiCategory,
+        recentEmojis: List<String>
     ) {
         this.settings = settings
         activeLongPressOptions = layout.longPressOptions
@@ -48,7 +49,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
         if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible)
         when {
-            emojiVisible -> addEmojiPanel(palette, activeEmojiCategory)
+            emojiVisible -> addEmojiPanel(palette, activeEmojiCategory, recentEmojis)
             symbolsVisible -> addSymbolsPanel(palette)
             else -> addLetters(layout, shiftState, palette)
         }
@@ -96,7 +97,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         )
     }
 
-    private fun addEmojiPanel(palette: Palette, activeCategory: EmojiCategory) {
+    private fun addEmojiPanel(palette: Palette, activeCategory: EmojiCategory, recentEmojis: List<String>) {
         addEmojiCategoryRow(palette, activeCategory)
         val scroller = ScrollView(context).apply {
             isFillViewport = false
@@ -108,7 +109,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         val grid = LinearLayout(context).apply {
             orientation = VERTICAL
         }
-        emojiRows(activeCategory).forEach { row ->
+        emojiRows(activeCategory, recentEmojis).forEach { row ->
             grid.addView(keyRow(row.map { emoji -> KeyboardKey(emoji, KeyAction.Text(emoji)) }, palette, 46.dp))
         }
         scroller.addView(grid)
@@ -144,12 +145,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         addView(row)
     }
 
-    private fun emojiRows(category: EmojiCategory): List<List<String>> = when (category) {
-        EmojiCategory.HISTORY -> rowsOf(
-            "😀", "😂", "❤️", "👍", "🙏", "🔥", "🎉", "✅",
-            "😊", "😍", "😘", "😎", "😭", "😅", "🤔", "🙄",
-            "🥰", "🤣", "🤲", "💯", "✨", "👏", "👌", "💪"
-        )
+    private fun emojiRows(category: EmojiCategory, recentEmojis: List<String>): List<List<String>> = when (category) {
+        EmojiCategory.HISTORY -> recentEmojis.chunked(8)
         EmojiCategory.FACES -> rowsOf(
             "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂",
             "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩",

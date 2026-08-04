@@ -15,6 +15,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private var symbolsVisible = false
     private var emojiVisible = false
     private var activeEmojiCategory = EmojiCategory.FACES
+    private val recentEmojis = mutableListOf<String>()
     private val backspaceRepeater = BackspaceRepeater { deleteOne() }
 
     override fun onCreate() {
@@ -43,7 +44,10 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
 
     override fun onKey(action: KeyAction) {
         when (action) {
-            is KeyAction.Text -> commitText(outputFor(action.value, shiftState))
+            is KeyAction.Text -> {
+                commitText(outputFor(action.value, shiftState))
+                if (emojiVisible) rememberEmoji(action.value)
+            }
             is KeyAction.EmojiCategorySelect -> {
                 activeEmojiCategory = action.category
                 emojiVisible = true
@@ -149,7 +153,16 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             shiftState = shiftState,
             symbolsVisible = symbolsVisible,
             emojiVisible = emojiVisible,
-            activeEmojiCategory = activeEmojiCategory
+            activeEmojiCategory = activeEmojiCategory,
+            recentEmojis = recentEmojis
         )
+    }
+
+    private fun rememberEmoji(value: String) {
+        recentEmojis.remove(value)
+        recentEmojis.add(0, value)
+        if (recentEmojis.size > 48) {
+            recentEmojis.removeAt(recentEmojis.lastIndex)
+        }
     }
 }
