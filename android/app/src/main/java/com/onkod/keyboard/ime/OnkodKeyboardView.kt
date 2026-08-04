@@ -83,6 +83,23 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         addClipboardSection("Pinned", pinnedClips, palette, emptyLabel = "No pinned clips", selectionMode, selectedClips)
     }
 
+    fun showMorePanel(toolbarKeys: List<KeyboardKey>) {
+        removeAllViews()
+        val palette = palette(settings.theme)
+        setBackgroundColor(palette.background)
+        addToolbar(toolbarKeys, palette, emojiVisible = false)
+
+        val row = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.TOP or Gravity.START
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 150.dp)
+            setPadding(10.dp, 12.dp, 10.dp, 0)
+        }
+        row.addView(moreOptionTile(R.drawable.ic_more_one_handed, "One-handed\nkeyboard", KeyAction.OneHandedKeyboard, palette))
+        row.addView(moreOptionTile(R.drawable.ic_more_mode, "Mode", KeyAction.Settings, palette))
+        addView(row)
+    }
+
     private fun clipLabel(value: String): String =
         value.replace(Regex("\\s+"), " ").let { if (it.length > 54) "${it.take(54)}…" else it }
 
@@ -178,6 +195,46 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                 feedback()
                 listener?.onKey(action)
             }
+        }
+
+    private fun moreOptionTile(iconRes: Int, label: String, action: KeyAction, palette: Palette): LinearLayout =
+        LinearLayout(context).apply {
+            orientation = VERTICAL
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            layoutParams = LayoutParams(120.dp, LayoutParams.MATCH_PARENT).apply {
+                rightMargin = 16.dp
+            }
+            addView(ImageButton(context).apply {
+                contentDescription = label.replace("\n", " ")
+                setImageResource(iconRes)
+                setColorFilter(palette.text)
+                setBackgroundColor(Color.TRANSPARENT)
+                background = KeyDrawable(
+                    normalColor = palette.functionKey,
+                    pressedColor = palette.pressed,
+                    radius = 34.dp.toFloat()
+                )
+                scaleType = ImageView.ScaleType.CENTER
+                layoutParams = LayoutParams(68.dp, 68.dp)
+                setOnClickListener {
+                    feedback()
+                    listener?.onKey(action)
+                }
+            })
+            addView(TextView(context).apply {
+                text = label
+                setTextColor(palette.text)
+                textSize = 16f
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = 8.dp
+                }
+                setOnClickListener {
+                    feedback()
+                    listener?.onKey(action)
+                }
+            })
         }
 
     private fun addClipboardSection(

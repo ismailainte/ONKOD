@@ -55,6 +55,7 @@ sealed class KeyAction {
     data object EmojiPanel : KeyAction()
     data object Settings : KeyAction()
     data object Clipboard : KeyAction()
+    data object OneHandedKeyboard : KeyAction()
     data object More : KeyAction()
 }
 

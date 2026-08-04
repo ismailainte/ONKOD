@@ -153,7 +153,8 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             KeyAction.Settings -> openSettings()
             KeyAction.Clipboard -> showClipboard()
-            KeyAction.More -> keyboardView.showMessagePanel("Theme, layout, privacy, and about shortcuts are available in the Onkod app.")
+            KeyAction.OneHandedKeyboard -> keyboardView.showMessagePanel("One-handed keyboard will be available soon.")
+            KeyAction.More -> keyboardView.showMorePanel(KeyboardLayouts.forMode(settings.activeMode()).toolbar)
         }
     }
 
