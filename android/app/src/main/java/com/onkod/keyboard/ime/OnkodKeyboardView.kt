@@ -36,7 +36,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         settings: KeyboardSettings,
         shiftState: ShiftState,
         symbolsVisible: Boolean,
-        emojiVisible: Boolean
+        emojiVisible: Boolean,
+        activeEmojiCategory: EmojiCategory
     ) {
         this.settings = settings
         activeLongPressOptions = layout.longPressOptions
@@ -46,7 +47,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
         if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible)
         when {
-            emojiVisible -> addEmojiPanel(palette)
+            emojiVisible -> addEmojiPanel(palette, activeEmojiCategory)
             symbolsVisible -> addSymbolsPanel(palette)
             else -> addLetters(layout, shiftState, palette)
         }
@@ -94,10 +95,9 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         )
     }
 
-    private fun addEmojiPanel(palette: Palette) {
-        val emojis = listOf("😀", "😂", "❤️", "👍", "🙏", "🔥", "🎉", "✅")
-            .map { KeyboardKey(it, KeyAction.Text(it)) }
-        addKeyRow(emojis, palette, 52.dp)
+    private fun addEmojiPanel(palette: Palette, activeCategory: EmojiCategory) {
+        addEmojiCategoryRow(palette, activeCategory)
+        emojiRows(activeCategory).forEach { addKeyRow(it.map { emoji -> KeyboardKey(emoji, KeyAction.Text(emoji)) }, palette, 48.dp) }
         addKeyRow(
             listOf(
                 KeyboardKey("ABC", KeyAction.Abc, 1.2f),
@@ -106,6 +106,68 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             ),
             palette,
             50.dp
+        )
+    }
+
+    private fun addEmojiCategoryRow(palette: Palette, activeCategory: EmojiCategory) {
+        val row = row(height = 38.dp)
+        emojiCategories.forEach { category ->
+            row.addView(
+                keyView(
+                    key = KeyboardKey(category.icon, KeyAction.EmojiCategorySelect(category.type)),
+                    palette = if (category.type == activeCategory) palette.copy(functionKey = palette.pressed) else palette,
+                    function = true,
+                    textSizeSp = 18f
+                )
+            )
+        }
+        addView(row)
+    }
+
+    private fun emojiRows(category: EmojiCategory): List<List<String>> = when (category) {
+        EmojiCategory.HISTORY -> listOf(
+            listOf("😀", "😂", "❤️", "👍", "🙏", "🔥", "🎉", "✅"),
+            listOf("😊", "😍", "😘", "😎", "😭", "😅", "🤔", "🙄")
+        )
+        EmojiCategory.FACES -> listOf(
+            listOf("😀", "😃", "😁", "😄", "😆", "😅", "🤣", "😂"),
+            listOf("🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "😘"),
+            listOf("🤔", "🤫", "😐", "😑", "😴", "😭", "😡", "🥳")
+        )
+        EmojiCategory.ANIMALS -> listOf(
+            listOf("🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼"),
+            listOf("🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐔"),
+            listOf("🐧", "🐦", "🐤", "🦆", "🦅", "🦉", "🐴", "🦋")
+        )
+        EmojiCategory.FOOD -> listOf(
+            listOf("🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓"),
+            listOf("🫐", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅"),
+            listOf("🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🍰", "☕")
+        )
+        EmojiCategory.HOME -> listOf(
+            listOf("🏠", "🏡", "🏘️", "🏢", "🏫", "🏥", "🏦", "🏨"),
+            listOf("🛏️", "🛋️", "🚪", "🪟", "🛁", "🚿", "🧹", "🧺"),
+            listOf("🚗", "🚌", "✈️", "🚲", "⛽", "🛒", "🔑", "📍")
+        )
+        EmojiCategory.SPORTS -> listOf(
+            listOf("⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🎱"),
+            listOf("🏓", "🏸", "🥊", "🥋", "⛳", "🎣", "🏆", "🥇"),
+            listOf("🏃", "🚴", "🏊", "🤾", "⛹️", "🤸", "🧘", "🎮")
+        )
+        EmojiCategory.BOOKS -> listOf(
+            listOf("📚", "📖", "📕", "📗", "📘", "📙", "📓", "📒"),
+            listOf("📝", "✏️", "🖊️", "📌", "📎", "📐", "📏", "🎓"),
+            listOf("💼", "💻", "📱", "⌚", "📷", "🎧", "🔒", "💡")
+        )
+        EmojiCategory.SYMBOLS -> listOf(
+            listOf("!", "?", "‼️", "⁉️", "✅", "❌", "⭕", "⭐"),
+            listOf("❤️", "💔", "💯", "🔴", "🟠", "🟡", "🟢", "🔵"),
+            listOf("➕", "➖", "➗", "✖️", "♻️", "⚠️", "🚫", "🔞")
+        )
+        EmojiCategory.FLAGS -> listOf(
+            listOf("🇸🇴", "🇩🇯", "🇰🇪", "🇪🇹", "🇺🇸", "🇬🇧", "🇫🇷", "🇨🇦"),
+            listOf("🇹🇷", "🇸🇦", "🇦🇪", "🇶🇦", "🇪🇬", "🇿🇦", "🇳🇬", "🇪🇺"),
+            listOf("🏳️", "🏴", "🏁", "🚩", "🏳️‍🌈", "🏴‍☠️")
         )
     }
 
@@ -254,4 +316,21 @@ private data class Palette(
     val functionKey: Int,
     val text: Int,
     val pressed: Int
+)
+
+private data class EmojiCategoryTab(
+    val type: EmojiCategory,
+    val icon: String
+)
+
+private val emojiCategories = listOf(
+    EmojiCategoryTab(EmojiCategory.HISTORY, "◷"),
+    EmojiCategoryTab(EmojiCategory.FACES, "☺"),
+    EmojiCategoryTab(EmojiCategory.ANIMALS, "🐶"),
+    EmojiCategoryTab(EmojiCategory.FOOD, "🍎"),
+    EmojiCategoryTab(EmojiCategory.HOME, "⌂"),
+    EmojiCategoryTab(EmojiCategory.SPORTS, "🏀"),
+    EmojiCategoryTab(EmojiCategory.BOOKS, "📖"),
+    EmojiCategoryTab(EmojiCategory.SYMBOLS, "!?"),
+    EmojiCategoryTab(EmojiCategory.FLAGS, "⚑")
 )

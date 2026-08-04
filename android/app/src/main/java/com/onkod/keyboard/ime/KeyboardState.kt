@@ -6,6 +6,7 @@ enum class KeyboardMode { SOMALI_QWERTY, ENGLISH_QWERTY, SOMALI_ASHERTY, FRENCH_
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class ShiftState { LOWERCASE, SHIFT, CAPS }
 enum class LongPressDelay { NORMAL, SHORT, LONG }
+enum class EmojiCategory { HISTORY, FACES, ANIMALS, FOOD, HOME, SPORTS, BOOKS, SYMBOLS, FLAGS }
 
 data class KeyboardSettings(
     val layoutGroup: LayoutGroup = LayoutGroup.QWERTY,
@@ -28,6 +29,7 @@ data class KeyboardKey(
 
 sealed class KeyAction {
     data class Text(val value: String) : KeyAction()
+    data class EmojiCategorySelect(val category: EmojiCategory) : KeyAction()
     data object Shift : KeyAction()
     data object Backspace : KeyAction()
     data object Symbols : KeyAction()
