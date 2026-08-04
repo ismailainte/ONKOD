@@ -12,10 +12,13 @@ import android.view.MotionEvent
 import android.view.WindowInsets
 import android.widget.PopupWindow
 import android.widget.HorizontalScrollView
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.onkod.keyboard.R
 
 class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     interface Listener {
@@ -84,7 +87,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                 bottomMargin = 6.dp
             }
         }
-        row.addView(clipboardTopButton("⌨", KeyAction.Abc, palette, 0.8f))
+        row.addView(clipboardTopButton(R.drawable.ic_clipboard_keyboard, "Keyboard", KeyAction.Abc, palette, 0.8f))
         row.addView(TextView(context).apply {
             text = "Clipboard"
             setTextColor(palette.text)
@@ -97,18 +100,19 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             ?.takeIf { it.isNotBlank() }
             ?.let { if (pinnedClips.contains(it)) KeyAction.UnpinClipboardText(it) else KeyAction.PinClipboardText(it) }
             ?: KeyAction.Clipboard
-        row.addView(clipboardTopButton("📌︎", pinAction, palette, 0.8f))
-        row.addView(clipboardTopButton("🗑︎", KeyAction.ClearClipboardRecent, palette, 0.8f))
+        row.addView(clipboardTopButton(R.drawable.ic_clipboard_pin, "Pin clipboard text", pinAction, palette, 0.8f))
+        row.addView(clipboardTopButton(R.drawable.ic_clipboard_delete, "Clear recent clipboard", KeyAction.ClearClipboardRecent, palette, 0.8f))
         addView(row)
     }
 
-    private fun clipboardTopButton(label: String, action: KeyAction, palette: Palette, weight: Float): TextView =
-        TextView(context).apply {
-            text = label
-            contentDescription = label
+    private fun clipboardTopButton(iconRes: Int, description: String, action: KeyAction, palette: Palette, weight: Float): ImageButton =
+        ImageButton(context).apply {
+            contentDescription = description
+            setImageResource(iconRes)
+            setColorFilter(palette.text)
+            setBackgroundColor(Color.TRANSPARENT)
+            scaleType = ImageView.ScaleType.CENTER
             gravity = Gravity.CENTER
-            textSize = 24f
-            setTextColor(palette.text)
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, weight)
             setOnClickListener {
                 feedback()
