@@ -243,19 +243,21 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             layoutParams = LinearLayout.LayoutParams(150.dp, 76.dp).apply {
                 rightMargin = 10.dp
             }
-            background = KeyDrawable(
-                normalColor = if (selected) palette.pressed else palette.key,
-                pressedColor = palette.pressed,
-                radius = 14.dp.toFloat()
-            )
+            if (!muted) {
+                background = KeyDrawable(
+                    normalColor = if (selected) palette.pressed else palette.key,
+                    pressedColor = palette.pressed,
+                    radius = 14.dp.toFloat()
+                )
+            }
             val labelView = TextView(context).apply {
-            text = label
-            setTextColor(if (muted) palette.secondaryText else palette.text)
-            textSize = 18f
-            gravity = Gravity.TOP or Gravity.START
-            maxLines = 3
-            ellipsize = TextUtils.TruncateAt.END
-            setPadding(12.dp, 10.dp, 12.dp, 10.dp)
+                text = label
+                setTextColor(if (muted) palette.secondaryText else palette.text)
+                textSize = 18f
+                gravity = if (muted) Gravity.CENTER else Gravity.TOP or Gravity.START
+                maxLines = 3
+                ellipsize = TextUtils.TruncateAt.END
+                setPadding(12.dp, 10.dp, 12.dp, 10.dp)
                 layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             }
             addView(labelView)
