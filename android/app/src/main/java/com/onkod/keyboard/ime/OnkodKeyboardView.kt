@@ -372,19 +372,21 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             setBackgroundColor(Color.rgb(58, 58, 60))
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
             addView(oneHandedControl("↙↗", "Normal keyboard", KeyAction.ExitOneHandedKeyboard, palette))
-            addView(oneHandedControl(
-                if (side == OneHandedSide.RIGHT) "‹" else "›",
-                "Switch one-handed side",
-                KeyAction.SetOneHandedSide(if (side == OneHandedSide.RIGHT) OneHandedSide.LEFT else OneHandedSide.RIGHT),
-                palette
-            ))
+            addView(oneHandedControl("‹", "Move keyboard left", KeyAction.SetOneHandedSide(OneHandedSide.LEFT), palette, selected = side == OneHandedSide.LEFT))
+            addView(oneHandedControl("›", "Move keyboard right", KeyAction.SetOneHandedSide(OneHandedSide.RIGHT), palette, selected = side == OneHandedSide.RIGHT))
         }
 
-    private fun oneHandedControl(label: String, description: String, action: KeyAction, palette: Palette): TextView =
+    private fun oneHandedControl(
+        label: String,
+        description: String,
+        action: KeyAction,
+        palette: Palette,
+        selected: Boolean = false
+    ): TextView =
         TextView(context).apply {
             text = label
             contentDescription = description
-            setTextColor(palette.text)
+            setTextColor(if (selected) palette.accent else palette.text)
             textSize = 34f
             gravity = Gravity.CENTER
             includeFontPadding = false

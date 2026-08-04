@@ -39,6 +39,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private var clipboardSelectionMode = ClipboardSelectionMode.NONE
     private val selectedClipboardClips = linkedSetOf<String>()
     private var oneHandedSide = OneHandedSide.NONE
+    private var morePanelVisible = false
     private var clipboardImagePreview: ClipboardImage? = null
     private var clipboardSuggestion: ClipboardSuggestion? = null
     private var currentClipboardId: String? = null
@@ -100,6 +101,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         shiftState = ShiftState.LOWERCASE
         symbolsVisible = false
         emojiVisible = false
+        morePanelVisible = false
         if (::keyboardView.isInitialized) render()
     }
 
@@ -124,6 +126,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         }
         when (action) {
             is KeyAction.Text -> {
+                morePanelVisible = false
                 commitText(outputFor(action.value, shiftState))
                 if (emojiVisible) rememberEmoji(action.value)
             }
@@ -196,57 +199,102 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 showClipboard(readSystemClipboard = false)
             }
             is KeyAction.EmojiCategorySelect -> {
+                morePanelVisible = false
                 activeEmojiCategory = action.category
                 emojiVisible = true
                 symbolsVisible = false
                 render()
             }
             is KeyAction.SymbolsPage -> {
+                morePanelVisible = false
                 symbolsPage = action.page
                 symbolsVisible = true
                 emojiVisible = false
                 render()
             }
-            KeyAction.Space -> commitText(" ")
-            KeyAction.Period -> commitText(".")
-            KeyAction.Enter -> performEnter()
-            KeyAction.Shift -> toggleShift()
-            KeyAction.Backspace -> deleteOne()
+            KeyAction.Space -> {
+                morePanelVisible = false
+                commitText(" ")
+            }
+            KeyAction.Period -> {
+                morePanelVisible = false
+                commitText(".")
+            }
+            KeyAction.Enter -> {
+                morePanelVisible = false
+                performEnter()
+            }
+            KeyAction.Shift -> {
+                morePanelVisible = false
+                toggleShift()
+            }
+            KeyAction.Backspace -> {
+                morePanelVisible = false
+                deleteOne()
+            }
             KeyAction.Symbols -> {
+                morePanelVisible = false
                 symbolsVisible = true
                 symbolsPage = 1
                 emojiVisible = false
                 render()
             }
             KeyAction.Abc -> {
+                morePanelVisible = false
                 symbolsVisible = false
                 emojiVisible = false
                 render()
             }
-            KeyAction.Globe -> switchInternalLanguage()
+            KeyAction.Globe -> {
+                morePanelVisible = false
+                switchInternalLanguage()
+            }
             KeyAction.HideKeyboard -> requestHideSelf(0)
             KeyAction.EmojiPanel -> {
+                morePanelVisible = false
                 emojiVisible = true
                 symbolsVisible = false
                 activeEmojiCategory = EmojiCategory.FACES
                 render()
             }
-            KeyAction.Settings -> openSettings()
-            KeyAction.Clipboard -> showClipboard()
+            KeyAction.Settings -> {
+                morePanelVisible = false
+                openSettings()
+            }
+            KeyAction.Clipboard -> {
+                morePanelVisible = false
+                showClipboard()
+            }
             KeyAction.DismissClipboardSuggestion -> dismissClipboardSuggestion()
             KeyAction.OneHandedKeyboard -> {
+                morePanelVisible = false
                 oneHandedSide = OneHandedSide.RIGHT
+                symbolsVisible = false
+                emojiVisible = false
                 render()
             }
             is KeyAction.SetOneHandedSide -> {
+                morePanelVisible = false
                 oneHandedSide = action.side
+                symbolsVisible = false
+                emojiVisible = false
                 render()
             }
             KeyAction.ExitOneHandedKeyboard -> {
+                morePanelVisible = false
                 oneHandedSide = OneHandedSide.NONE
                 render()
             }
-            KeyAction.More -> keyboardView.showMorePanel(KeyboardLayouts.forMode(settings.activeMode()).toolbar)
+            KeyAction.More -> {
+                morePanelVisible = !morePanelVisible
+                symbolsVisible = false
+                emojiVisible = false
+                if (morePanelVisible) {
+                    keyboardView.showMorePanel(KeyboardLayouts.forMode(settings.activeMode()).toolbar)
+                } else {
+                    render()
+                }
+            }
         }
     }
 
@@ -344,6 +392,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         settings = settingsStore.write(settings.nextInternalLanguage())
         symbolsVisible = false
         emojiVisible = false
+        morePanelVisible = false
         shiftState = ShiftState.LOWERCASE
         render()
     }
