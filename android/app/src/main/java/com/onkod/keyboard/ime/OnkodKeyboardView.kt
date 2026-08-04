@@ -61,14 +61,19 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
-    fun showClipboardPanel(text: String?) {
+    fun showClipboardPanel(text: String?, pinnedClips: List<String>) {
         removeAllViews()
         val palette = palette(settings.theme)
         val spaceLabel = KeyboardLayouts.forMode(settings.activeMode()).spaceLabel
         setBackgroundColor(palette.background)
 
-        val preview = TextView(context).apply {
-            this.text = text?.let { "Clipboard: $it" } ?: "Clipboard is empty"
+        val currentText = text?.takeIf { it.isNotBlank() }
+        val header = TextView(context).apply {
+            this.text = when {
+                currentText != null -> "Copied text"
+                pinnedClips.isNotEmpty() -> "Pinned clipboard"
+                else -> "Clipboard is empty"
+            }
             contentDescription = "Clipboard preview"
             setTextColor(palette.text)
             textSize = 14f
@@ -85,32 +90,45 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                 bottomMargin = 8.dp
             }
         }
-        addView(preview)
+        addView(header)
 
-        val actions = if (text.isNullOrBlank()) {
-            listOf(
-                KeyboardKey("ABC", KeyAction.Abc, 1.2f),
-                KeyboardKey("Clipboard empty", KeyAction.Clipboard, 4f),
-                KeyboardKey("Hide", KeyAction.HideKeyboard, 1.2f)
-            )
-        } else {
-            listOf(
-                KeyboardKey("ABC", KeyAction.Abc, 1.2f),
-                KeyboardKey("Paste", KeyAction.PasteText(text), 4f),
-                KeyboardKey("Hide", KeyAction.HideKeyboard, 1.2f)
+        val clipRows = mutableListOf<List<KeyboardKey>>()
+        if (currentText != null) {
+            val pinAction = if (pinnedClips.contains(currentText)) {
+                KeyAction.UnpinClipboardText(currentText)
+            } else {
+                KeyAction.PinClipboardText(currentText)
+            }
+            val pinLabel = if (pinnedClips.contains(currentText)) "Unpin" else "Pin"
+            clipRows += listOf(
+                KeyboardKey(clipLabel(currentText), KeyAction.PasteText(currentText), 4.2f),
+                KeyboardKey(pinLabel, pinAction, 1.2f)
             )
         }
-        addKeyRow(actions, palette, 52.dp)
+        pinnedClips.filterNot { it == currentText }.take(5).forEach { pinned ->
+            clipRows += listOf(
+                KeyboardKey(clipLabel(pinned), KeyAction.PasteText(pinned), 4.2f),
+                KeyboardKey("Unpin", KeyAction.UnpinClipboardText(pinned), 1.2f)
+            )
+        }
+        if (clipRows.isEmpty()) {
+            clipRows += listOf(KeyboardKey("Nothing copied yet", KeyAction.Clipboard, 5.4f))
+        }
+        clipRows.take(4).forEach { addKeyRow(it, palette, 44.dp) }
         addKeyRow(
             listOf(
+                KeyboardKey("ABC", KeyAction.Abc, 1.2f),
                 KeyboardKey("Globe", KeyAction.Globe, 1f),
                 KeyboardKey(spaceLabel, KeyAction.Space, 4f),
-                KeyboardKey("Backspace", KeyAction.Backspace, 1.4f)
+                KeyboardKey("Hide", KeyAction.HideKeyboard, 1.2f)
             ),
             palette,
             50.dp
         )
     }
+
+    private fun clipLabel(value: String): String =
+        value.replace(Regex("\\s+"), " ").let { if (it.length > 28) "${it.take(28)}…" else it }
 
     private fun addToolbar(keys: List<KeyboardKey>, palette: Palette, emojiVisible: Boolean) {
         val row = row(height = 38.dp)

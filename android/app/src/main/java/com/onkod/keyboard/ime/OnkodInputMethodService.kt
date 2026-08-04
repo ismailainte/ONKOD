@@ -10,6 +10,7 @@ import com.onkod.keyboard.SettingsActivity
 
 class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener {
     private lateinit var settingsStore: SettingsStore
+    private lateinit var clipboardStore: ClipboardStore
     private lateinit var keyboardView: OnkodKeyboardView
     private var settings = KeyboardSettings()
     private var shiftState = ShiftState.LOWERCASE
@@ -23,6 +24,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     override fun onCreate() {
         super.onCreate()
         settingsStore = SettingsStore(this)
+        clipboardStore = ClipboardStore(this)
     }
 
     override fun onCreateInputView(): View {
@@ -52,9 +54,14 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             is KeyAction.PasteText -> {
                 commitRawText(action.value)
-                symbolsVisible = false
-                emojiVisible = false
-                render()
+            }
+            is KeyAction.PinClipboardText -> {
+                clipboardStore.pin(action.value)
+                showClipboard()
+            }
+            is KeyAction.UnpinClipboardText -> {
+                clipboardStore.unpin(action.value)
+                showClipboard()
             }
             is KeyAction.EmojiCategorySelect -> {
                 activeEmojiCategory = action.category
@@ -130,7 +137,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             ?.coerceToText(this)
             ?.toString()
             ?.takeIf { it.isNotBlank() }
-        keyboardView.showClipboardPanel(text)
+        keyboardView.showClipboardPanel(text, clipboardStore.readPinned())
     }
 
     private fun deleteOne() {
