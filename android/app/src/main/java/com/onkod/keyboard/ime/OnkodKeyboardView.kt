@@ -425,7 +425,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             } else {
                 key
             }
-            row.addView(keyView(toolbarKey, palette, function = true, textSizeSp = 12f))
+            row.addView(keyView(toolbarKey, palette, function = true, textSizeSp = 12f, flatControl = emojiVisible))
         }
         addView(row)
     }
@@ -501,7 +501,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         }
         scroller.addView(grid)
         emojiFrame.addView(scroller)
-        emojiFrame.addView(keyView(KeyboardKey("Backspace", KeyAction.Backspace), palette, function = true, textSizeSp = 16f).apply {
+        emojiFrame.addView(keyView(KeyboardKey("Backspace", KeyAction.Backspace), palette, function = true, textSizeSp = 16f, flatControl = true).apply {
             layoutParams = FrameLayout.LayoutParams(64.dp, 42.dp, Gravity.BOTTOM or Gravity.END).apply {
                 rightMargin = 3.dp
                 bottomMargin = 2.dp
@@ -650,7 +650,14 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         }
     }
 
-    private fun keyView(key: KeyboardKey, palette: Palette, function: Boolean, textSizeSp: Float, flat: Boolean = false): TextView =
+    private fun keyView(
+        key: KeyboardKey,
+        palette: Palette,
+        function: Boolean,
+        textSizeSp: Float,
+        flat: Boolean = false,
+        flatControl: Boolean = false
+    ): TextView =
         TextView(context).apply {
             val isEmojiCategory = key.action is KeyAction.EmojiCategorySelect
             val isSpace = key.action == KeyAction.Space
@@ -663,10 +670,13 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             typeface = if (flat) android.graphics.Typeface.DEFAULT else android.graphics.Typeface.DEFAULT_BOLD
             includeFontPadding = false
             minHeight = 42.dp
+            elevation = 0f
+            translationZ = 0f
+            stateListAnimator = null
             if (!flat) {
                 background = KeyDrawable(
-                    normalColor = if (function) palette.functionKey else palette.key,
-                    pressedColor = palette.pressed,
+                    normalColor = if (flatControl) flatControlColor(palette) else if (function) palette.functionKey else palette.key,
+                    pressedColor = if (flatControl) flatControlPressedColor(palette) else palette.pressed,
                     radius = when {
                         isEmojiCategory -> 22.dp.toFloat()
                         isSpace -> 14.dp.toFloat()
@@ -813,6 +823,12 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             )
         }
     }
+
+    private fun flatControlColor(palette: Palette): Int =
+        if (palette.text == Color.WHITE) Color.rgb(32, 34, 38) else Color.rgb(224, 229, 236)
+
+    private fun flatControlPressedColor(palette: Palette): Int =
+        if (palette.text == Color.WHITE) Color.rgb(43, 46, 52) else Color.rgb(210, 217, 228)
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 
