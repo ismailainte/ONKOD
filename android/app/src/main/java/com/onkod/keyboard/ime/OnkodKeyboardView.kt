@@ -152,9 +152,9 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, normalKeyboardBodyHeight())
             setPadding(10.dp, 12.dp, 10.dp, 0)
         }
-        row.addView(moreChoiceTile("↙↗", "Normal\nkeyboard", KeyAction.ExitOneHandedKeyboard, palette, selected = currentSide == OneHandedSide.NONE))
-        row.addView(moreChoiceTile("‹", "Left\nhand", KeyAction.SetOneHandedSide(OneHandedSide.LEFT), palette, selected = currentSide == OneHandedSide.LEFT))
-        row.addView(moreChoiceTile("›", "Right\nhand", KeyAction.SetOneHandedSide(OneHandedSide.RIGHT), palette, selected = currentSide == OneHandedSide.RIGHT))
+        row.addView(moreChoiceTile("↙↗", "Normal", KeyAction.ExitOneHandedKeyboard, palette, selected = currentSide == OneHandedSide.NONE))
+        row.addView(moreChoiceTile("‹", "Left hand", KeyAction.SetOneHandedSide(OneHandedSide.LEFT), palette, selected = currentSide == OneHandedSide.LEFT))
+        row.addView(moreChoiceTile("›", "Right hand", KeyAction.SetOneHandedSide(OneHandedSide.RIGHT), palette, selected = currentSide == OneHandedSide.RIGHT))
         addKeyboardView(row)
     }
 
@@ -395,8 +395,9 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         LinearLayout(context).apply {
             orientation = VERTICAL
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            layoutParams = LayoutParams(120.dp, LayoutParams.MATCH_PARENT).apply {
-                rightMargin = 16.dp
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply {
+                leftMargin = 4.dp
+                rightMargin = 4.dp
             }
             addView(TextView(context).apply {
                 text = icon
@@ -419,9 +420,10 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             addView(TextView(context).apply {
                 text = label
                 setTextColor(palette.text)
-                textSize = 16f
+                textSize = 15f
                 gravity = Gravity.CENTER
                 includeFontPadding = false
+                maxLines = 2
                 layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
                     topMargin = 8.dp
                 }
