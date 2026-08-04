@@ -130,7 +130,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         val row = LinearLayout(context).apply {
             orientation = HORIZONTAL
             gravity = Gravity.TOP or Gravity.START
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 150.dp)
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, normalKeyboardBodyHeight())
             setPadding(10.dp, 12.dp, 10.dp, 0)
         }
         row.addView(moreOptionTile(R.drawable.ic_more_one_handed, "One-handed\nkeyboard", KeyAction.OneHandedKeyboard, palette))
@@ -674,6 +674,11 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         }
         addKeyRow(layout.bottomRow, palette, 52.dp)
     }
+
+    private fun normalKeyboardBodyHeight(): Int =
+        (if (settings.numberRow) 46.dp + 6.dp else 0) +
+            (3 * (50.dp + 6.dp)) +
+            52.dp + 6.dp
 
     private fun addSymbolsPanel(palette: Palette, page: Int, spaceLabel: String) {
         symbolsRows(page).forEach { addKeyRow(it, palette, 46.dp) }
