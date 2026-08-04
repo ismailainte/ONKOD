@@ -419,26 +419,31 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     private fun addToolbar(keys: List<KeyboardKey>, palette: Palette, emojiVisible: Boolean) {
         val row = row(height = 38.dp)
+        row.background = KeyDrawable(
+            normalColor = toolbarSurfaceColor(palette),
+            pressedColor = toolbarSurfaceColor(palette),
+            radius = 14.dp.toFloat()
+        )
         keys.forEach { key ->
             val toolbarKey = if (emojiVisible && key.action == KeyAction.EmojiPanel) {
                 KeyboardKey("ABC", KeyAction.Abc, key.weight)
             } else {
                 key
             }
-            row.addView(keyView(toolbarKey, palette, function = true, textSizeSp = 12f, flatControl = emojiVisible))
+            row.addView(keyView(toolbarKey, palette, function = true, textSizeSp = 14f, toolbarIcon = true))
         }
         addView(row)
     }
 
     private fun addLetters(layout: KeyboardLayout, shiftState: ShiftState, palette: Palette) {
-        if (settings.numberRow) addKeyRow(layout.numberRow, palette, 44.dp)
+        if (settings.numberRow) addKeyRow(layout.numberRow, palette, 46.dp)
         layout.letterRows.forEach { keys ->
             val rendered = keys.map { key ->
                 if (key.action is KeyAction.Text) key.copy(label = displayLabel(key.label, shiftState)) else key
             }
-            addKeyRow(rendered, palette, 48.dp)
+            addKeyRow(rendered, palette, 50.dp)
         }
-        addKeyRow(layout.bottomRow, palette, 50.dp)
+        addKeyRow(layout.bottomRow, palette, 52.dp)
     }
 
     private fun addSymbolsPanel(palette: Palette, page: Int, spaceLabel: String) {
@@ -634,8 +639,11 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             val function = key.action !is KeyAction.Text
             val size = when {
                 flatTextKeys -> 22f
-                key.label.length > 1 && key.label != "Somali" -> 12f
-                else -> 16f
+                key.action == KeyAction.Space -> 20f
+                key.action is KeyAction.Text && key.label.length > 1 -> 20f
+                key.action is KeyAction.Text -> 24f
+                key.action == KeyAction.Symbols -> 18f
+                else -> 18f
             }
             row.addView(keyView(key, palette, function, size, flat = flatTextKeys && !function))
         }
@@ -656,7 +664,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         function: Boolean,
         textSizeSp: Float,
         flat: Boolean = false,
-        flatControl: Boolean = false
+        flatControl: Boolean = false,
+        toolbarIcon: Boolean = false
     ): TextView =
         TextView(context).apply {
             val isEmojiCategory = key.action is KeyAction.EmojiCategorySelect
@@ -673,7 +682,13 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             elevation = 0f
             translationZ = 0f
             stateListAnimator = null
-            if (!flat) {
+            if (toolbarIcon) {
+                background = KeyDrawable(
+                    normalColor = Color.TRANSPARENT,
+                    pressedColor = toolbarPressedColor(palette),
+                    radius = 14.dp.toFloat()
+                )
+            } else if (!flat) {
                 background = KeyDrawable(
                     normalColor = if (flatControl) flatControlColor(palette) else if (function) palette.functionKey else palette.key,
                     pressedColor = if (flatControl) flatControlPressedColor(palette) else palette.pressed,
@@ -828,6 +843,12 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         if (palette.text == Color.WHITE) Color.rgb(32, 34, 38) else Color.rgb(224, 229, 236)
 
     private fun flatControlPressedColor(palette: Palette): Int =
+        if (palette.text == Color.WHITE) Color.rgb(43, 46, 52) else Color.rgb(210, 217, 228)
+
+    private fun toolbarSurfaceColor(palette: Palette): Int =
+        if (palette.text == Color.WHITE) Color.rgb(26, 27, 31) else Color.rgb(232, 236, 242)
+
+    private fun toolbarPressedColor(palette: Palette): Int =
         if (palette.text == Color.WHITE) Color.rgb(43, 46, 52) else Color.rgb(210, 217, 228)
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
