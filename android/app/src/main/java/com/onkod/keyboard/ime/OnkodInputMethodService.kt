@@ -21,6 +21,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private val recentEmojis = mutableListOf<String>()
     private var clipboardSelectionMode = ClipboardSelectionMode.NONE
     private val selectedClipboardClips = linkedSetOf<String>()
+    private var oneHandedSide = OneHandedSide.NONE
     private val backspaceRepeater = BackspaceRepeater { deleteOne() }
 
     override fun onCreate() {
@@ -153,7 +154,18 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             KeyAction.Settings -> openSettings()
             KeyAction.Clipboard -> showClipboard()
-            KeyAction.OneHandedKeyboard -> keyboardView.showMessagePanel("One-handed keyboard will be available soon.")
+            KeyAction.OneHandedKeyboard -> {
+                oneHandedSide = OneHandedSide.RIGHT
+                render()
+            }
+            is KeyAction.SetOneHandedSide -> {
+                oneHandedSide = action.side
+                render()
+            }
+            KeyAction.ExitOneHandedKeyboard -> {
+                oneHandedSide = OneHandedSide.NONE
+                render()
+            }
             KeyAction.More -> keyboardView.showMorePanel(KeyboardLayouts.forMode(settings.activeMode()).toolbar)
         }
     }
@@ -255,7 +267,8 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             symbolsPage = symbolsPage,
             emojiVisible = emojiVisible,
             activeEmojiCategory = activeEmojiCategory,
-            recentEmojis = recentEmojis
+            recentEmojis = recentEmojis,
+            oneHandedSide = oneHandedSide
         )
     }
 

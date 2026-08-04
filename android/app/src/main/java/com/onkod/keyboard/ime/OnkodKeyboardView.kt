@@ -32,6 +32,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     var listener: Listener? = null
     private var settings: KeyboardSettings = KeyboardSettings()
     private var activeLongPressOptions: Map<String, List<String>> = emptyMap()
+    private var keyboardHost: LinearLayout? = null
     private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
     init {
@@ -47,13 +48,35 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         symbolsPage: Int,
         emojiVisible: Boolean,
         activeEmojiCategory: EmojiCategory,
-        recentEmojis: List<String>
+        recentEmojis: List<String>,
+        oneHandedSide: OneHandedSide = OneHandedSide.NONE
     ) {
         this.settings = settings
         activeLongPressOptions = layout.longPressOptions
         removeAllViews()
+        keyboardHost = null
+        orientation = if (oneHandedSide == OneHandedSide.NONE) VERTICAL else HORIZONTAL
+        setPadding(
+            if (oneHandedSide == OneHandedSide.NONE) 8.dp else 0,
+            if (oneHandedSide == OneHandedSide.NONE) 8.dp else 0,
+            if (oneHandedSide == OneHandedSide.NONE) 8.dp else 0,
+            if (oneHandedSide == OneHandedSide.NONE) bottomSafePadding() else 0
+        )
         val palette = palette(settings.theme)
         setBackgroundColor(palette.background)
+
+        if (oneHandedSide != OneHandedSide.NONE) {
+            val sidePanel = oneHandedPanel(oneHandedSide, palette)
+            val keyboardColumn = LinearLayout(context).apply {
+                orientation = VERTICAL
+                setPadding(8.dp, 8.dp, 8.dp, bottomSafePadding())
+                layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 3.2f)
+            }
+            keyboardHost = keyboardColumn
+            if (oneHandedSide == OneHandedSide.RIGHT) addView(sidePanel)
+            addView(keyboardColumn)
+            if (oneHandedSide == OneHandedSide.LEFT) addView(sidePanel)
+        }
 
         if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible)
         when {
@@ -61,10 +84,15 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             symbolsVisible -> addSymbolsPanel(palette, symbolsPage, layout.spaceLabel)
             else -> addLetters(layout, shiftState, palette)
         }
+        keyboardHost = null
     }
 
     fun showMessagePanel(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun addKeyboardView(view: android.view.View) {
+        (keyboardHost ?: this).addView(view)
     }
 
     fun showClipboardPanel(
@@ -75,6 +103,9 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         selectedClips: Set<String> = emptySet()
     ) {
         removeAllViews()
+        keyboardHost = null
+        orientation = VERTICAL
+        setPadding(8.dp, 8.dp, 8.dp, bottomSafePadding())
         val palette = palette(settings.theme)
         setBackgroundColor(palette.background)
 
@@ -85,6 +116,9 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     fun showMorePanel(toolbarKeys: List<KeyboardKey>) {
         removeAllViews()
+        keyboardHost = null
+        orientation = VERTICAL
+        setPadding(8.dp, 8.dp, 8.dp, bottomSafePadding())
         val palette = palette(settings.theme)
         setBackgroundColor(palette.background)
         addToolbar(toolbarKeys, palette, emojiVisible = false)
@@ -97,7 +131,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         }
         row.addView(moreOptionTile(R.drawable.ic_more_one_handed, "One-handed\nkeyboard", KeyAction.OneHandedKeyboard, palette))
         row.addView(moreOptionTile(R.drawable.ic_more_mode, "Mode", KeyAction.Settings, palette))
-        addView(row)
+        addKeyboardView(row)
     }
 
     private fun clipLabel(value: String): String =
@@ -235,6 +269,39 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                     listener?.onKey(action)
                 }
             })
+        }
+
+    private fun oneHandedPanel(side: OneHandedSide, palette: Palette): LinearLayout =
+        LinearLayout(context).apply {
+            orientation = VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.rgb(58, 58, 60))
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
+            addView(oneHandedControl("↙↗", "Normal keyboard", KeyAction.ExitOneHandedKeyboard, palette))
+            addView(oneHandedControl(
+                if (side == OneHandedSide.RIGHT) "‹" else "›",
+                "Switch one-handed side",
+                KeyAction.SetOneHandedSide(if (side == OneHandedSide.RIGHT) OneHandedSide.LEFT else OneHandedSide.RIGHT),
+                palette
+            ))
+        }
+
+    private fun oneHandedControl(label: String, description: String, action: KeyAction, palette: Palette): TextView =
+        TextView(context).apply {
+            text = label
+            contentDescription = description
+            setTextColor(palette.text)
+            textSize = 34f
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 74.dp).apply {
+                topMargin = 12.dp
+                bottomMargin = 12.dp
+            }
+            setOnClickListener {
+                feedback()
+                listener?.onKey(action)
+            }
         }
 
     private fun addClipboardSection(
@@ -429,7 +496,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             grid.addView(keyRow(row.map { emoji -> KeyboardKey(emoji, KeyAction.Text(emoji)) }, palette, 46.dp, flatTextKeys = true))
         }
         scroller.addView(grid)
-        addView(scroller)
+        addKeyboardView(scroller)
         addKeyRow(
             listOf(
                 KeyboardKey("ABC", KeyAction.Abc, 1.2f),
@@ -458,7 +525,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                 )
             )
         }
-        addView(row)
+        addKeyboardView(row)
     }
 
     private fun emojiRows(category: EmojiCategory, recentEmojis: List<String>): List<List<String>> = when (category) {
@@ -556,7 +623,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     private fun rowsOf(vararg items: String): List<List<String>> = items.toList().chunked(8)
 
     private fun addKeyRow(keys: List<KeyboardKey>, palette: Palette, height: Int) {
-        addView(keyRow(keys, palette, height, flatTextKeys = false))
+        addKeyboardView(keyRow(keys, palette, height, flatTextKeys = false))
     }
 
     private fun keyRow(keys: List<KeyboardKey>, palette: Palette, height: Int, flatTextKeys: Boolean): LinearLayout {

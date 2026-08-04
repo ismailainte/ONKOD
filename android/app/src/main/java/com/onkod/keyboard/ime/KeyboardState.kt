@@ -8,6 +8,7 @@ enum class ShiftState { LOWERCASE, SHIFT, CAPS }
 enum class LongPressDelay { NORMAL, SHORT, LONG }
 enum class EmojiCategory { HISTORY, FACES, ANIMALS, FOOD, HOME, SPORTS, BOOKS, SYMBOLS, FLAGS }
 enum class ClipboardSelectionMode { NONE, PIN, DELETE }
+enum class OneHandedSide { NONE, LEFT, RIGHT }
 
 data class KeyboardSettings(
     val layoutGroup: LayoutGroup = LayoutGroup.QWERTY,
@@ -56,6 +57,8 @@ sealed class KeyAction {
     data object Settings : KeyAction()
     data object Clipboard : KeyAction()
     data object OneHandedKeyboard : KeyAction()
+    data class SetOneHandedSide(val side: OneHandedSide) : KeyAction()
+    data object ExitOneHandedKeyboard : KeyAction()
     data object More : KeyAction()
 }
 
