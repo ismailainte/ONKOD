@@ -16,7 +16,7 @@ object KeyboardLayouts {
         KeyboardKey("Globe", KeyAction.Globe, 1f),
         KeyboardKey(spaceLabel, KeyAction.Space, 4f),
         KeyboardKey(".", KeyAction.Period, 1f),
-        KeyboardKey("Hide", KeyAction.HideKeyboard, 1.2f)
+        KeyboardKey("Enter", KeyAction.Enter, 1.2f)
     )
 
     val somaliQwerty = KeyboardLayout(

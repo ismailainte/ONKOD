@@ -529,7 +529,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             val isEmojiCategory = key.action is KeyAction.EmojiCategorySelect
             val isSpace = key.action == KeyAction.Space
             val isGlobe = key.action == KeyAction.Globe
-            text = iconLabel(key.label)
+            val iconRes = keyIconRes(key.action)
+            text = if (iconRes == null) iconLabel(key.label) else ""
             contentDescription = key.label
             gravity = Gravity.CENTER
             setTextColor(palette.text)
@@ -551,6 +552,14 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, key.weight).apply {
                 leftMargin = if (isEmojiCategory) 4.dp else 3.dp
                 rightMargin = if (isEmojiCategory) 4.dp else 3.dp
+            }
+            if (iconRes != null) {
+                context.getDrawable(iconRes)?.mutate()?.let { icon ->
+                    val iconSize = if (key.action == KeyAction.Enter) 30.dp else 28.dp
+                    icon.setTint(palette.text)
+                    icon.setBounds(0, 0, iconSize, iconSize)
+                    setCompoundDrawables(null, icon, null, null)
+                }
             }
             setOnClickListener {
                 feedback()
@@ -627,6 +636,12 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         "Clipboard" -> "□"
         "More" -> "⋯"
         else -> label
+    }
+
+    private fun keyIconRes(action: KeyAction): Int? = when (action) {
+        KeyAction.Globe -> R.drawable.ic_key_globe
+        KeyAction.Enter -> R.drawable.ic_key_enter
+        else -> null
     }
 
     private fun feedback() {
