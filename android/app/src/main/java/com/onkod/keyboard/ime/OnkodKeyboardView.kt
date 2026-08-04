@@ -11,6 +11,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowInsets
 import android.widget.PopupWindow
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -62,74 +63,114 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
-    fun showClipboardPanel(text: String?, pinnedClips: List<String>) {
+    fun showClipboardPanel(currentText: String?, recentClips: List<String>, pinnedClips: List<String>) {
         removeAllViews()
         val palette = palette(settings.theme)
-        val spaceLabel = KeyboardLayouts.forMode(settings.activeMode()).spaceLabel
         setBackgroundColor(palette.background)
 
-        val currentText = text?.takeIf { it.isNotBlank() }
-        val header = TextView(context).apply {
-            this.text = when {
-                currentText != null -> "Copied text"
-                pinnedClips.isNotEmpty() -> "Pinned clipboard"
-                else -> "Clipboard is empty"
-            }
-            contentDescription = "Clipboard preview"
-            setTextColor(palette.text)
-            textSize = 14f
-            gravity = Gravity.CENTER_VERTICAL
-            maxLines = 2
-            ellipsize = TextUtils.TruncateAt.END
-            setPadding(14.dp, 0, 14.dp, 0)
-            background = KeyDrawable(
-                normalColor = palette.functionKey,
-                pressedColor = palette.pressed,
-                radius = 14.dp.toFloat()
-            )
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 52.dp).apply {
-                bottomMargin = 8.dp
-            }
-        }
-        addView(header)
-
-        val clipRows = mutableListOf<List<KeyboardKey>>()
-        if (currentText != null) {
-            val pinAction = if (pinnedClips.contains(currentText)) {
-                KeyAction.UnpinClipboardText(currentText)
-            } else {
-                KeyAction.PinClipboardText(currentText)
-            }
-            val pinLabel = if (pinnedClips.contains(currentText)) "Unpin" else "Pin"
-            clipRows += listOf(
-                KeyboardKey(clipLabel(currentText), KeyAction.PasteText(currentText), 4.2f),
-                KeyboardKey(pinLabel, pinAction, 1.2f)
-            )
-        }
-        pinnedClips.filterNot { it == currentText }.take(5).forEach { pinned ->
-            clipRows += listOf(
-                KeyboardKey(clipLabel(pinned), KeyAction.PasteText(pinned), 4.2f),
-                KeyboardKey("Unpin", KeyAction.UnpinClipboardText(pinned), 1.2f)
-            )
-        }
-        if (clipRows.isEmpty()) {
-            clipRows += listOf(KeyboardKey("Nothing copied yet", KeyAction.Clipboard, 5.4f))
-        }
-        clipRows.take(4).forEach { addKeyRow(it, palette, 44.dp) }
-        addKeyRow(
-            listOf(
-                KeyboardKey("ABC", KeyAction.Abc, 1.2f),
-                KeyboardKey("Globe", KeyAction.Globe, 1f),
-                KeyboardKey(spaceLabel, KeyAction.Space, 4f),
-                KeyboardKey("Hide", KeyAction.HideKeyboard, 1.2f)
-            ),
-            palette,
-            50.dp
-        )
+        addClipboardTopBar(currentText, pinnedClips, palette)
+        addClipboardSection("Recent", recentClips, palette, emptyLabel = "Nothing copied yet")
+        addClipboardSection("Pinned", pinnedClips, palette, emptyLabel = "No pinned clips")
     }
 
     private fun clipLabel(value: String): String =
-        value.replace(Regex("\\s+"), " ").let { if (it.length > 28) "${it.take(28)}…" else it }
+        value.replace(Regex("\\s+"), " ").let { if (it.length > 54) "${it.take(54)}…" else it }
+
+    private fun addClipboardTopBar(currentText: String?, pinnedClips: List<String>, palette: Palette) {
+        val row = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 46.dp).apply {
+                bottomMargin = 6.dp
+            }
+        }
+        row.addView(clipboardTopButton("⌨", KeyAction.Abc, palette, 0.8f))
+        row.addView(TextView(context).apply {
+            text = "Clipboard"
+            setTextColor(palette.text)
+            textSize = 22f
+            gravity = Gravity.CENTER_VERTICAL
+            typeface = android.graphics.Typeface.DEFAULT
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 3.4f)
+        })
+        val pinAction = currentText
+            ?.takeIf { it.isNotBlank() }
+            ?.let { if (pinnedClips.contains(it)) KeyAction.UnpinClipboardText(it) else KeyAction.PinClipboardText(it) }
+            ?: KeyAction.Clipboard
+        row.addView(clipboardTopButton("📌︎", pinAction, palette, 0.8f))
+        row.addView(clipboardTopButton("🗑︎", KeyAction.ClearClipboardRecent, palette, 0.8f))
+        addView(row)
+    }
+
+    private fun clipboardTopButton(label: String, action: KeyAction, palette: Palette, weight: Float): TextView =
+        TextView(context).apply {
+            text = label
+            contentDescription = label
+            gravity = Gravity.CENTER
+            textSize = 24f
+            setTextColor(palette.text)
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, weight)
+            setOnClickListener {
+                feedback()
+                listener?.onKey(action)
+            }
+        }
+
+    private fun addClipboardSection(title: String, clips: List<String>, palette: Palette, emptyLabel: String) {
+        addView(TextView(context).apply {
+            text = title
+            setTextColor(palette.secondaryText)
+            textSize = 15f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 28.dp)
+        })
+        val scroll = HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            overScrollMode = OVER_SCROLL_NEVER
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 80.dp).apply {
+                bottomMargin = 10.dp
+            }
+        }
+        val row = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+        }
+        val visibleClips = clips.take(12)
+        if (visibleClips.isEmpty()) {
+            row.addView(clipboardCard(emptyLabel, null, palette, muted = true))
+        } else {
+            visibleClips.forEach { clip ->
+                row.addView(clipboardCard(clipLabel(clip), KeyAction.PasteText(clip), palette, muted = false))
+            }
+        }
+        scroll.addView(row)
+        addView(scroll)
+    }
+
+    private fun clipboardCard(label: String, action: KeyAction?, palette: Palette, muted: Boolean): TextView =
+        TextView(context).apply {
+            text = label
+            setTextColor(if (muted) palette.secondaryText else palette.text)
+            textSize = 18f
+            gravity = Gravity.TOP or Gravity.START
+            maxLines = 3
+            ellipsize = TextUtils.TruncateAt.END
+            setPadding(12.dp, 10.dp, 12.dp, 10.dp)
+            background = KeyDrawable(
+                normalColor = palette.key,
+                pressedColor = palette.pressed,
+                radius = 14.dp.toFloat()
+            )
+            layoutParams = LinearLayout.LayoutParams(150.dp, 76.dp).apply {
+                rightMargin = 10.dp
+            }
+            if (action != null) {
+                setOnClickListener {
+                    feedback()
+                    listener?.onKey(action)
+                }
+            }
+        }
 
     private fun addToolbar(keys: List<KeyboardKey>, palette: Palette, emojiVisible: Boolean) {
         val row = row(height = 38.dp)

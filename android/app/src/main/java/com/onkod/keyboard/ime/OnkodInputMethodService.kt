@@ -63,6 +63,10 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 clipboardStore.unpin(action.value)
                 showClipboard()
             }
+            KeyAction.ClearClipboardRecent -> {
+                clipboardStore.clearRecent()
+                showClipboard()
+            }
             is KeyAction.EmojiCategorySelect -> {
                 activeEmojiCategory = action.category
                 emojiVisible = true
@@ -137,7 +141,14 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             ?.coerceToText(this)
             ?.toString()
             ?.takeIf { it.isNotBlank() }
-        keyboardView.showClipboardPanel(text, clipboardStore.readPinned())
+        if (text != null) clipboardStore.rememberRecent(text)
+        val pinned = clipboardStore.readPinned()
+        val recent = clipboardStore.readRecent().filterNot { pinned.contains(it) }
+        keyboardView.showClipboardPanel(
+            currentText = text,
+            recentClips = recent,
+            pinnedClips = pinned
+        )
     }
 
     private fun deleteOne() {

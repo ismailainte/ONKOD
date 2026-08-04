@@ -34,6 +34,7 @@ sealed class KeyAction {
     data class UnpinClipboardText(val value: String) : KeyAction()
     data class EmojiCategorySelect(val category: EmojiCategory) : KeyAction()
     data class SymbolsPage(val page: Int) : KeyAction()
+    data object ClearClipboardRecent : KeyAction()
     data object Shift : KeyAction()
     data object Backspace : KeyAction()
     data object Symbols : KeyAction()
