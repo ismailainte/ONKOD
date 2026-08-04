@@ -30,6 +30,7 @@ data class KeyboardKey(
 sealed class KeyAction {
     data class Text(val value: String) : KeyAction()
     data class EmojiCategorySelect(val category: EmojiCategory) : KeyAction()
+    data class SymbolsPage(val page: Int) : KeyAction()
     data object Shift : KeyAction()
     data object Backspace : KeyAction()
     data object Symbols : KeyAction()

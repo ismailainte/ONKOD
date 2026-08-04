@@ -88,13 +88,6 @@ object KeyboardLayouts {
         )
     )
 
-    val symbolsRows = listOf(
-        row("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
-        row("@", "#", "$", "%", "&", "-", "+", "(", ")", "/"),
-        row("*", "\"", "'", ":", ";", "!", "?"),
-        row(",", ".", "_", "=", "<", ">")
-    )
-
     fun forMode(mode: KeyboardMode): KeyboardLayout = when (mode) {
         KeyboardMode.SOMALI_QWERTY -> somaliQwerty
         KeyboardMode.ENGLISH_QWERTY -> englishQwerty

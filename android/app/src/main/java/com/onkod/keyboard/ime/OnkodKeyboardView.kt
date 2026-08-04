@@ -37,6 +37,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         settings: KeyboardSettings,
         shiftState: ShiftState,
         symbolsVisible: Boolean,
+        symbolsPage: Int,
         emojiVisible: Boolean,
         activeEmojiCategory: EmojiCategory,
         recentEmojis: List<String>
@@ -50,7 +51,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible)
         when {
             emojiVisible -> addEmojiPanel(palette, activeEmojiCategory, recentEmojis)
-            symbolsVisible -> addSymbolsPanel(palette)
+            symbolsVisible -> addSymbolsPanel(palette, symbolsPage, layout.spaceLabel)
             else -> addLetters(layout, shiftState, palette)
         }
     }
@@ -83,19 +84,44 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         addKeyRow(layout.bottomRow, palette, 50.dp)
     }
 
-    private fun addSymbolsPanel(palette: Palette) {
-        KeyboardLayouts.symbolsRows.forEach { addKeyRow(it, palette, 46.dp) }
+    private fun addSymbolsPanel(palette: Palette, page: Int, spaceLabel: String) {
+        symbolsRows(page).forEach { addKeyRow(it, palette, 46.dp) }
         addKeyRow(
             listOf(
                 KeyboardKey("ABC", KeyAction.Abc, 1.2f),
-                KeyboardKey("Somali", KeyAction.Space, 4f),
-                KeyboardKey("Enter", KeyAction.Enter, 1.4f),
-                KeyboardKey("Backspace", KeyAction.Backspace, 1.4f)
+                KeyboardKey("Globe", KeyAction.Globe, 0.9f),
+                KeyboardKey(",", KeyAction.Text(","), 1f),
+                KeyboardKey(spaceLabel, KeyAction.Space, 4f),
+                KeyboardKey(".", KeyAction.Period, 1f),
+                KeyboardKey("Enter", KeyAction.Enter, 1.35f)
             ),
             palette,
             50.dp
         )
     }
+
+    private fun symbolsRows(page: Int): List<List<KeyboardKey>> = if (page == 2) {
+        listOf(
+            symbolRow("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
+            symbolRow("`", "~", "\\", "|", "{", "}", "€", "£", "¥", "₩"),
+            symbolRow("°", "•", "○", "●", "□", "■", "♤", "♡", "◇", "♧"),
+            listOf(KeyboardKey("2/2", KeyAction.SymbolsPage(1), 1.4f)) +
+                symbolRow("☆", "▪", "¤", "《", "》", "¡", "¿") +
+                KeyboardKey("Backspace", KeyAction.Backspace, 1.4f)
+        )
+    } else {
+        listOf(
+            symbolRow("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
+            symbolRow("+", "×", "÷", "=", "/", "_", "<", ">", "[", "]"),
+            symbolRow("!", "@", "#", "$", "%", "^", "&", "*", "(", ")"),
+            listOf(KeyboardKey("1/2", KeyAction.SymbolsPage(2), 1.4f)) +
+                symbolRow("-", "'", "\"", ":", ";", ",", "?") +
+                KeyboardKey("Backspace", KeyAction.Backspace, 1.4f)
+        )
+    }
+
+    private fun symbolRow(vararg labels: String): List<KeyboardKey> =
+        labels.map { KeyboardKey(it, KeyAction.Text(it)) }
 
     private fun addEmojiPanel(palette: Palette, activeCategory: EmojiCategory, recentEmojis: List<String>) {
         addEmojiCategoryRow(palette, activeCategory)

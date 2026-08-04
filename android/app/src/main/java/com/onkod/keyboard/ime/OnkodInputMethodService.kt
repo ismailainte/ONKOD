@@ -13,6 +13,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private var settings = KeyboardSettings()
     private var shiftState = ShiftState.LOWERCASE
     private var symbolsVisible = false
+    private var symbolsPage = 1
     private var emojiVisible = false
     private var activeEmojiCategory = EmojiCategory.FACES
     private val recentEmojis = mutableListOf<String>()
@@ -54,6 +55,12 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 symbolsVisible = false
                 render()
             }
+            is KeyAction.SymbolsPage -> {
+                symbolsPage = action.page
+                symbolsVisible = true
+                emojiVisible = false
+                render()
+            }
             KeyAction.Space -> commitText(" ")
             KeyAction.Period -> commitText(".")
             KeyAction.Enter -> performEnter()
@@ -61,6 +68,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             KeyAction.Backspace -> deleteOne()
             KeyAction.Symbols -> {
                 symbolsVisible = true
+                symbolsPage = 1
                 emojiVisible = false
                 render()
             }
@@ -152,6 +160,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             settings = settings,
             shiftState = shiftState,
             symbolsVisible = symbolsVisible,
+            symbolsPage = symbolsPage,
             emojiVisible = emojiVisible,
             activeEmojiCategory = activeEmojiCategory,
             recentEmojis = recentEmojis
