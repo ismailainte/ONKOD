@@ -78,6 +78,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         settings = settingsStore.read()
         registerClipboardListener()
         registerScreenshotObserver()
+        importMissedScreenshots()
         inspectClipboardForSuggestion()
         keyboardView = OnkodKeyboardView(this)
         keyboardView.listener = this
@@ -92,6 +93,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         settings = settingsStore.read()
         registerClipboardListener()
         registerScreenshotObserver()
+        importMissedScreenshots()
         if (activePackageName != null && activePackageName != info?.packageName) {
             consumeClipboardSuggestion(renderNow = false)
         }
@@ -108,6 +110,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         super.onWindowShown()
         registerClipboardListener()
         registerScreenshotObserver()
+        importMissedScreenshots()
         inspectClipboardForSuggestion()
         if (::keyboardView.isInitialized) render()
     }
@@ -453,9 +456,29 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     }
 
     private fun handleScreenshotMediaChanged() {
-        val image = findRecentScreenshotImage() ?: return
-        if (lastHandledScreenshotUri == image.uri) return
-        lastHandledScreenshotUri = image.uri
+        val screenshot = findRecentScreenshot() ?: return
+        if (lastHandledScreenshotUri == screenshot.image.uri) return
+        lastHandledScreenshotUri = screenshot.image.uri
+        clipboardStore.rememberLastScreenshotMarker(maxOf(clipboardStore.readLastScreenshotMarker(), screenshot.marker))
+        copyScreenshotToClipboard(screenshot.image)
+    }
+
+    private fun importMissedScreenshots() {
+        val screenshots = findMissedScreenshots(clipboardStore.readLastScreenshotMarker())
+        if (screenshots.isEmpty()) return
+        screenshots.forEach { screenshot ->
+            clipboardStore.rememberImage(screenshot.image)
+        }
+        val latest = screenshots.maxByOrNull { it.marker } ?: return
+        clipboardStore.rememberLastScreenshotMarker(latest.marker)
+        if (lastHandledScreenshotUri != latest.image.uri) {
+            lastHandledScreenshotUri = latest.image.uri
+            copyScreenshotToClipboard(latest.image)
+            logClipboardDebug("missed screenshots imported")
+        }
+    }
+
+    private fun copyScreenshotToClipboard(image: ClipboardImage) {
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newUri(contentResolver, "Onkod screenshot", Uri.parse(image.uri))
         runCatching {
@@ -467,10 +490,18 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         }
     }
 
-    private fun findRecentScreenshotImage(): ClipboardImage? {
+    private fun findRecentScreenshot(): ScreenshotMedia? =
+        queryScreenshots(newerThanMarker = 0L, maxAgeSeconds = SCREENSHOT_DETECTION_WINDOW_SECONDS, limit = 8)
+            .firstOrNull()
+
+    private fun findMissedScreenshots(lastMarker: Long): List<ScreenshotMedia> =
+        queryScreenshots(newerThanMarker = lastMarker, maxAgeSeconds = null, limit = 40)
+            .sortedBy { it.marker }
+
+    private fun queryScreenshots(newerThanMarker: Long, maxAgeSeconds: Long?, limit: Int): List<ScreenshotMedia> {
         if (!canReadImages()) {
             logClipboardDebug("screenshot observer missing image permission")
-            return null
+            return emptyList()
         }
         val nowSeconds = System.currentTimeMillis() / 1000
         val projection = buildList {
@@ -487,6 +518,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
         }.toTypedArray()
         return runCatching {
+            val screenshots = mutableListOf<ScreenshotMedia>()
             contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
@@ -505,11 +537,13 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                     @Suppress("DEPRECATION")
                     cursor.getColumnIndex(MediaStore.Images.Media.DATA)
                 }
-                repeat(8) {
-                    if (!cursor.moveToNext()) return@use null
+                repeat(limit) {
+                    if (!cursor.moveToNext()) return@repeat
                     val dateAdded = cursor.getLong(addedColumn)
                     val dateModified = cursor.getLong(modifiedColumn)
-                    if (nowSeconds - maxOf(dateAdded, dateModified) > SCREENSHOT_DETECTION_WINDOW_SECONDS) return@repeat
+                    val marker = maxOf(dateAdded, dateModified)
+                    if (marker <= newerThanMarker) return@repeat
+                    if (maxAgeSeconds != null && nowSeconds - marker > maxAgeSeconds) return@repeat
                     val displayName = cursor.getString(nameColumn).orEmpty()
                     val path = if (pathColumn >= 0) cursor.getString(pathColumn).orEmpty() else ""
                     if (!looksLikeScreenshot(displayName, path)) return@repeat
@@ -519,11 +553,11 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                         cursor.getLong(idColumn)
                     )
-                    return@use ClipboardImage(uri = uri.toString(), mimeType = mimeType)
+                    screenshots.add(ScreenshotMedia(ClipboardImage(uri = uri.toString(), mimeType = mimeType), marker))
                 }
-                null
-            }
-        }.getOrNull()
+                screenshots.distinctBy { it.image.uri }
+            } ?: emptyList()
+        }.getOrDefault(emptyList())
     }
 
     private fun looksLikeScreenshot(displayName: String, path: String): Boolean {
@@ -763,3 +797,8 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         const val SCREENSHOT_DETECTION_WINDOW_SECONDS = 15L
     }
 }
+
+private data class ScreenshotMedia(
+    val image: ClipboardImage,
+    val marker: Long
+)
