@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.PopupWindow
@@ -58,6 +59,57 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     fun showMessagePanel(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
+    fun showClipboardPanel(text: String?) {
+        removeAllViews()
+        val palette = palette(settings.theme)
+        val spaceLabel = KeyboardLayouts.forMode(settings.activeMode()).spaceLabel
+        setBackgroundColor(palette.background)
+
+        val preview = TextView(context).apply {
+            this.text = text?.let { "Clipboard: $it" } ?: "Clipboard is empty"
+            contentDescription = "Clipboard preview"
+            setTextColor(palette.text)
+            textSize = 14f
+            gravity = Gravity.CENTER_VERTICAL
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+            setPadding(14.dp, 0, 14.dp, 0)
+            background = KeyDrawable(
+                normalColor = palette.functionKey,
+                pressedColor = palette.pressed,
+                radius = 14.dp.toFloat()
+            )
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 52.dp).apply {
+                bottomMargin = 8.dp
+            }
+        }
+        addView(preview)
+
+        val actions = if (text.isNullOrBlank()) {
+            listOf(
+                KeyboardKey("ABC", KeyAction.Abc, 1.2f),
+                KeyboardKey("Clipboard empty", KeyAction.Clipboard, 4f),
+                KeyboardKey("Hide", KeyAction.HideKeyboard, 1.2f)
+            )
+        } else {
+            listOf(
+                KeyboardKey("ABC", KeyAction.Abc, 1.2f),
+                KeyboardKey("Paste", KeyAction.PasteText(text), 4f),
+                KeyboardKey("Hide", KeyAction.HideKeyboard, 1.2f)
+            )
+        }
+        addKeyRow(actions, palette, 52.dp)
+        addKeyRow(
+            listOf(
+                KeyboardKey("Globe", KeyAction.Globe, 1f),
+                KeyboardKey(spaceLabel, KeyAction.Space, 4f),
+                KeyboardKey("Backspace", KeyAction.Backspace, 1.4f)
+            ),
+            palette,
+            50.dp
+        )
     }
 
     private fun addToolbar(keys: List<KeyboardKey>, palette: Palette, emojiVisible: Boolean) {

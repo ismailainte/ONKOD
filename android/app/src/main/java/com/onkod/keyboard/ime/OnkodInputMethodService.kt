@@ -1,5 +1,6 @@
 package com.onkod.keyboard.ime
 
+import android.content.ClipboardManager
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.view.View
@@ -49,6 +50,12 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 commitText(outputFor(action.value, shiftState))
                 if (emojiVisible) rememberEmoji(action.value)
             }
+            is KeyAction.PasteText -> {
+                commitRawText(action.value)
+                symbolsVisible = false
+                emojiVisible = false
+                render()
+            }
             is KeyAction.EmojiCategorySelect -> {
                 activeEmojiCategory = action.category
                 emojiVisible = true
@@ -86,7 +93,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 render()
             }
             KeyAction.Settings -> openSettings()
-            KeyAction.Clipboard -> keyboardView.showMessagePanel("Clipboard history is not enabled in this MVP.")
+            KeyAction.Clipboard -> showClipboard()
             KeyAction.More -> keyboardView.showMessagePanel("Theme, layout, privacy, and about shortcuts are available in the Onkod app.")
         }
     }
@@ -109,6 +116,21 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             shiftState = ShiftState.LOWERCASE
             render()
         }
+    }
+
+    private fun commitRawText(value: String) {
+        currentInputConnection?.commitText(value, 1)
+    }
+
+    private fun showClipboard() {
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val text = clipboard.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(this)
+            ?.toString()
+            ?.takeIf { it.isNotBlank() }
+        keyboardView.showClipboardPanel(text)
     }
 
     private fun deleteOne() {
