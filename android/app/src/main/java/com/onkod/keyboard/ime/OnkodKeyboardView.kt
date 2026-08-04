@@ -482,30 +482,32 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     private fun addEmojiPanel(palette: Palette, activeCategory: EmojiCategory, recentEmojis: List<String>) {
         addEmojiCategoryRow(palette, activeCategory)
-        val scroller = ScrollView(context).apply {
-            isFillViewport = false
-            overScrollMode = OVER_SCROLL_NEVER
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 150.dp).apply {
+        val emojiFrame = FrameLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 206.dp).apply {
                 bottomMargin = 6.dp
             }
         }
+        val scroller = ScrollView(context).apply {
+            isFillViewport = false
+            overScrollMode = OVER_SCROLL_NEVER
+            layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        }
         val grid = LinearLayout(context).apply {
             orientation = VERTICAL
+            setPadding(0, 0, 0, 46.dp)
         }
         emojiRows(activeCategory, recentEmojis).forEach { row ->
             grid.addView(keyRow(row.map { emoji -> KeyboardKey(emoji, KeyAction.Text(emoji)) }, palette, 46.dp, flatTextKeys = true))
         }
         scroller.addView(grid)
-        addKeyboardView(scroller)
-        addKeyRow(
-            listOf(
-                KeyboardKey("ABC", KeyAction.Abc, 1.2f),
-                KeyboardKey("Somali", KeyAction.Space, 4f),
-                KeyboardKey("Backspace", KeyAction.Backspace, 1.4f)
-            ),
-            palette,
-            50.dp
-        )
+        emojiFrame.addView(scroller)
+        emojiFrame.addView(keyView(KeyboardKey("Backspace", KeyAction.Backspace), palette, function = true, textSizeSp = 16f).apply {
+            layoutParams = FrameLayout.LayoutParams(64.dp, 42.dp, Gravity.BOTTOM or Gravity.END).apply {
+                rightMargin = 3.dp
+                bottomMargin = 2.dp
+            }
+        })
+        addKeyboardView(emojiFrame)
     }
 
     private fun addEmojiCategoryRow(palette: Palette, activeCategory: EmojiCategory) {
