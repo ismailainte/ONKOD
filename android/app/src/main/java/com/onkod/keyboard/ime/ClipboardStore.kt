@@ -126,15 +126,6 @@ class ClipboardStore(context: Context) {
             .apply()
     }
 
-    fun readLastScreenshotMarker(): Long =
-        preferences.getLong("last_screenshot_marker", 0L)
-
-    fun rememberLastScreenshotMarker(marker: Long) {
-        preferences.edit()
-            .putLong("last_screenshot_marker", marker)
-            .apply()
-    }
-
     private fun readClipList(key: String): List<ClipboardClip> {
         val raw = preferences.getString(key, "[]").orEmpty()
         return runCatching {
