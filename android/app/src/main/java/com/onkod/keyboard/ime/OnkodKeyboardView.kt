@@ -10,6 +10,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.PopupWindow
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 
@@ -28,7 +29,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     init {
         orientation = VERTICAL
-        setPadding(6.dp, 6.dp, 6.dp, 6.dp)
+        setPadding(8.dp, 8.dp, 8.dp, 8.dp)
     }
 
     fun render(
@@ -97,7 +98,21 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     private fun addEmojiPanel(palette: Palette, activeCategory: EmojiCategory) {
         addEmojiCategoryRow(palette, activeCategory)
-        emojiRows(activeCategory).forEach { addKeyRow(it.map { emoji -> KeyboardKey(emoji, KeyAction.Text(emoji)) }, palette, 48.dp) }
+        val scroller = ScrollView(context).apply {
+            isFillViewport = false
+            overScrollMode = OVER_SCROLL_NEVER
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 150.dp).apply {
+                bottomMargin = 6.dp
+            }
+        }
+        val grid = LinearLayout(context).apply {
+            orientation = VERTICAL
+        }
+        emojiRows(activeCategory).forEach { row ->
+            grid.addView(keyRow(row.map { emoji -> KeyboardKey(emoji, KeyAction.Text(emoji)) }, palette, 46.dp))
+        }
+        scroller.addView(grid)
+        addView(scroller)
         addKeyRow(
             listOf(
                 KeyboardKey("ABC", KeyAction.Abc, 1.2f),
@@ -110,12 +125,17 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     }
 
     private fun addEmojiCategoryRow(palette: Palette, activeCategory: EmojiCategory) {
-        val row = row(height = 38.dp)
+        val row = row(height = 46.dp)
         emojiCategories.forEach { category ->
+            val selected = category.type == activeCategory
             row.addView(
                 keyView(
                     key = KeyboardKey(category.icon, KeyAction.EmojiCategorySelect(category.type)),
-                    palette = if (category.type == activeCategory) palette.copy(functionKey = palette.pressed) else palette,
+                    palette = if (selected) {
+                        palette.copy(functionKey = palette.accent, text = palette.selectedText)
+                    } else {
+                        palette.copy(functionKey = palette.background, text = palette.secondaryText)
+                    },
                     function = true,
                     textSizeSp = 18f
                 )
@@ -125,60 +145,115 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     }
 
     private fun emojiRows(category: EmojiCategory): List<List<String>> = when (category) {
-        EmojiCategory.HISTORY -> listOf(
-            listOf("😀", "😂", "❤️", "👍", "🙏", "🔥", "🎉", "✅"),
-            listOf("😊", "😍", "😘", "😎", "😭", "😅", "🤔", "🙄")
+        EmojiCategory.HISTORY -> rowsOf(
+            "😀", "😂", "❤️", "👍", "🙏", "🔥", "🎉", "✅",
+            "😊", "😍", "😘", "😎", "😭", "😅", "🤔", "🙄",
+            "🥰", "🤣", "🤲", "💯", "✨", "👏", "👌", "💪"
         )
-        EmojiCategory.FACES -> listOf(
-            listOf("😀", "😃", "😁", "😄", "😆", "😅", "🤣", "😂"),
-            listOf("🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "😘"),
-            listOf("🤔", "🤫", "😐", "😑", "😴", "😭", "😡", "🥳")
+        EmojiCategory.FACES -> rowsOf(
+            "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂",
+            "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩",
+            "😘", "😗", "☺️", "😚", "😙", "🥲", "😋", "😛",
+            "😜", "🤪", "😝", "🤑", "🤗", "🤭", "🫢", "🫣",
+            "🤫", "🤔", "🫡", "🤐", "🤨", "😐", "😑", "😶",
+            "😏", "😒", "🙄", "😬", "😮‍💨", "🤥", "😌", "😔",
+            "😪", "🤤", "😴", "😷", "🤒", "🤕", "🤢", "🤮",
+            "🥵", "🥶", "🥴", "😵", "🤯", "🤠", "🥳", "🥸",
+            "😎", "🤓", "🧐", "😕", "🫤", "😟", "🙁", "☹️",
+            "😮", "😯", "😲", "😳", "🥺", "🥹", "😦", "😧",
+            "😨", "😰", "😥", "😢", "😭", "😱", "😖", "😣",
+            "😞", "😓", "😩", "😫", "🥱", "😤", "😡", "😠",
+            "🤬", "😈", "👿", "💀", "☠️", "💩", "🤡", "👻",
+            "👽", "🤖", "😺", "😸", "😹", "😻", "😼", "😽"
         )
-        EmojiCategory.ANIMALS -> listOf(
-            listOf("🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼"),
-            listOf("🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐔"),
-            listOf("🐧", "🐦", "🐤", "🦆", "🦅", "🦉", "🐴", "🦋")
+        EmojiCategory.ANIMALS -> rowsOf(
+            "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼",
+            "🐻‍❄️", "🐨", "🐯", "🦁", "🐮", "🐷", "🐽", "🐸",
+            "🐵", "🙈", "🙉", "🙊", "🐒", "🐔", "🐧", "🐦",
+            "🐤", "🐣", "🐥", "🦆", "🦅", "🦉", "🦇", "🐺",
+            "🐗", "🐴", "🦄", "🐝", "🪱", "🐛", "🦋", "🐌",
+            "🐞", "🐜", "🪰", "🪲", "🪳", "🦟", "🦗", "🕷️",
+            "🐢", "🐍", "🦎", "🦂", "🦀", "🦞", "🦐", "🦑",
+            "🐙", "🦪", "🐠", "🐟", "🐡", "🐬", "🦈", "🐳",
+            "🐋", "🐊", "🐆", "🐅", "🐃", "🐂", "🐄", "🦬",
+            "🐪", "🐫", "🦙", "🦒", "🐘", "🦣", "🦏", "🦛"
         )
-        EmojiCategory.FOOD -> listOf(
-            listOf("🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓"),
-            listOf("🫐", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅"),
-            listOf("🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🍰", "☕")
+        EmojiCategory.FOOD -> rowsOf(
+            "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇",
+            "🍓", "🫐", "🍈", "🍒", "🍑", "🥭", "🍍", "🥥",
+            "🥝", "🍅", "🍆", "🥑", "🥦", "🥬", "🥒", "🌶️",
+            "🫑", "🌽", "🥕", "🫒", "🧄", "🧅", "🥔", "🍠",
+            "🥐", "🥯", "🍞", "🥖", "🥨", "🧀", "🥚", "🍳",
+            "🧈", "🥞", "🧇", "🥓", "🥩", "🍗", "🍖", "🦴",
+            "🌭", "🍔", "🍟", "🍕", "🫓", "🥪", "🥙", "🧆",
+            "🌮", "🌯", "🫔", "🥗", "🥘", "🫕", "🥫", "🍝",
+            "🍜", "🍲", "🍛", "🍣", "🍱", "🥟", "🦪", "🍤",
+            "🍙", "🍚", "🍘", "🍥", "🥠", "🥮", "🍢", "🍡",
+            "🍧", "🍨", "🍦", "🥧", "🧁", "🍰", "🎂", "🍮"
         )
-        EmojiCategory.HOME -> listOf(
-            listOf("🏠", "🏡", "🏘️", "🏢", "🏫", "🏥", "🏦", "🏨"),
-            listOf("🛏️", "🛋️", "🚪", "🪟", "🛁", "🚿", "🧹", "🧺"),
-            listOf("🚗", "🚌", "✈️", "🚲", "⛽", "🛒", "🔑", "📍")
+        EmojiCategory.HOME -> rowsOf(
+            "🏠", "🏡", "🏘️", "🏚️", "🏢", "🏬", "🏣", "🏤",
+            "🏥", "🏦", "🏨", "🏪", "🏫", "🏩", "💒", "🏛️",
+            "⛪", "🕌", "🕋", "🛕", "🕍", "⛩️", "🛤️", "🛣️",
+            "🗾", "🎑", "🏞️", "🌅", "🌄", "🌠", "🎇", "🎆",
+            "🌇", "🌆", "🏙️", "🌃", "🌌", "🌉", "🌁", "🛏️",
+            "🛋️", "🪑", "🚪", "🪟", "🛁", "🚿", "🚽", "🧻",
+            "🧼", "🪥", "🧽", "🧹", "🧺", "🧯", "🛒", "🔑",
+            "🗝️", "🧳", "🌂", "☂️", "🧵", "🪡", "🪢", "🧶"
         )
-        EmojiCategory.SPORTS -> listOf(
-            listOf("⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏉", "🎱"),
-            listOf("🏓", "🏸", "🥊", "🥋", "⛳", "🎣", "🏆", "🥇"),
-            listOf("🏃", "🚴", "🏊", "🤾", "⛹️", "🤸", "🧘", "🎮")
+        EmojiCategory.SPORTS -> rowsOf(
+            "⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🏉",
+            "🥏", "🎱", "🪀", "🏓", "🏸", "🏒", "🏑", "🥍",
+            "🏏", "🪃", "🥅", "⛳", "🪁", "🏹", "🎣", "🤿",
+            "🥊", "🥋", "🎽", "🛹", "🛼", "🛷", "⛸️", "🥌",
+            "🎿", "⛷️", "🏂", "🪂", "🏋️", "🤼", "🤸", "⛹️",
+            "🤺", "🤾", "🏌️", "🏇", "🧘", "🏄", "🏊", "🤽",
+            "🚣", "🧗", "🚵", "🚴", "🏆", "🥇", "🥈", "🥉",
+            "🏅", "🎖️", "🏵️", "🎗️", "🎫", "🎟️", "🎪", "🤹"
         )
-        EmojiCategory.BOOKS -> listOf(
-            listOf("📚", "📖", "📕", "📗", "📘", "📙", "📓", "📒"),
-            listOf("📝", "✏️", "🖊️", "📌", "📎", "📐", "📏", "🎓"),
-            listOf("💼", "💻", "📱", "⌚", "📷", "🎧", "🔒", "💡")
+        EmojiCategory.BOOKS -> rowsOf(
+            "📚", "📖", "📕", "📗", "📘", "📙", "📓", "📔",
+            "📒", "📃", "📜", "📄", "📰", "🗞️", "📑", "🔖",
+            "🏷️", "💰", "🪙", "💴", "💵", "💶", "💷", "💸",
+            "💳", "🧾", "💹", "✉️", "📧", "📨", "📩", "📤",
+            "📥", "📦", "📫", "📪", "📬", "📭", "📮", "🗳️",
+            "✏️", "✒️", "🖋️", "🖊️", "🖌️", "🖍️", "📝", "💼",
+            "📁", "📂", "🗂️", "📅", "📆", "🗒️", "🗓️", "📇",
+            "📈", "📉", "📊", "📋", "📌", "📍", "📎", "🖇️",
+            "📏", "📐", "✂️", "🗃️", "🗄️", "🗑️", "🔒", "🔓"
         )
-        EmojiCategory.SYMBOLS -> listOf(
-            listOf("!", "?", "‼️", "⁉️", "✅", "❌", "⭕", "⭐"),
-            listOf("❤️", "💔", "💯", "🔴", "🟠", "🟡", "🟢", "🔵"),
-            listOf("➕", "➖", "➗", "✖️", "♻️", "⚠️", "🚫", "🔞")
+        EmojiCategory.SYMBOLS -> rowsOf(
+            "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍",
+            "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖",
+            "💘", "💝", "💟", "☮️", "✝️", "☪️", "🕉️", "☸️",
+            "✡️", "🔯", "🕎", "☯️", "☦️", "🛐", "⛎", "♈",
+            "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐",
+            "♑", "♒", "♓", "🆔", "⚛️", "🉑", "☢️", "☣️",
+            "📴", "📳", "🈶", "🈚", "🈸", "🈺", "🈷️", "✴️",
+            "🆚", "💮", "🉐", "㊙️", "㊗️", "🈴", "🈵", "🈹",
+            "🈲", "🅰️", "🅱️", "🆎", "🆑", "🅾️", "🆘", "❌",
+            "⭕", "🛑", "⛔", "📛", "🚫", "💯", "💢", "♨️",
+            "🚷", "🚯", "🚳", "🚱", "🔞", "📵", "🚭", "❗",
+            "❕", "❓", "❔", "‼️", "⁉️", "🔅", "🔆", "〽️",
+            "⚠️", "🚸", "🔱", "⚜️", "🔰", "♻️", "✅", "🈯"
         )
-        EmojiCategory.FLAGS -> listOf(
-            listOf("🇸🇴", "🇩🇯", "🇰🇪", "🇪🇹", "🇺🇸", "🇬🇧", "🇫🇷", "🇨🇦"),
-            listOf("🇹🇷", "🇸🇦", "🇦🇪", "🇶🇦", "🇪🇬", "🇿🇦", "🇳🇬", "🇪🇺"),
-            listOf("🏳️", "🏴", "🏁", "🚩", "🏳️‍🌈", "🏴‍☠️")
-        )
+        EmojiCategory.FLAGS -> rowsOf(*allFlagEmojis.toTypedArray())
     }
 
+    private fun rowsOf(vararg items: String): List<List<String>> = items.toList().chunked(8)
+
     private fun addKeyRow(keys: List<KeyboardKey>, palette: Palette, height: Int) {
+        addView(keyRow(keys, palette, height))
+    }
+
+    private fun keyRow(keys: List<KeyboardKey>, palette: Palette, height: Int): LinearLayout {
         val row = row(height)
         keys.forEach { key ->
             val function = key.action !is KeyAction.Text
             val size = if (key.label.length > 1 && key.label != "Somali") 12f else 16f
             row.addView(keyView(key, palette, function, size))
         }
-        addView(row)
+        return row
     }
 
     private fun row(height: Int): LinearLayout = LinearLayout(context).apply {
@@ -191,22 +266,29 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     private fun keyView(key: KeyboardKey, palette: Palette, function: Boolean, textSizeSp: Float): TextView =
         TextView(context).apply {
+            val isEmojiCategory = key.action is KeyAction.EmojiCategorySelect
+            val isSpace = key.action == KeyAction.Space
+            val isGlobe = key.action == KeyAction.Globe
             text = iconLabel(key.label)
             contentDescription = key.label
             gravity = Gravity.CENTER
             setTextColor(palette.text)
-            textSize = textSizeSp
+            textSize = if (isGlobe) 24f else textSizeSp
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             includeFontPadding = false
             minHeight = 42.dp
             background = KeyDrawable(
                 normalColor = if (function) palette.functionKey else palette.key,
                 pressedColor = palette.pressed,
-                radius = 7.dp.toFloat()
+                radius = when {
+                    isEmojiCategory -> 22.dp.toFloat()
+                    isSpace -> 14.dp.toFloat()
+                    else -> 12.dp.toFloat()
+                }
             )
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, key.weight).apply {
-                leftMargin = 3.dp
-                rightMargin = 3.dp
+                leftMargin = if (isEmojiCategory) 4.dp else 3.dp
+                rightMargin = if (isEmojiCategory) 4.dp else 3.dp
             }
             setOnClickListener {
                 feedback()
@@ -275,7 +357,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     private fun iconLabel(label: String): String = when (label) {
         "Shift" -> "⇧"
         "Backspace" -> "⌫"
-        "Globe" -> "◎"
+        "Globe" -> "♁"
         "Hide" -> "⌄"
         "Enter" -> "↵"
         "Emoji" -> "☺"
@@ -301,9 +383,27 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             ThemeMode.SYSTEM -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         }
         return if (dark) {
-            Palette(Color.rgb(17, 19, 23), Color.rgb(43, 47, 54), Color.rgb(58, 64, 72), Color.WHITE, Color.rgb(11, 95, 255))
+            Palette(
+                background = Color.rgb(26, 27, 31),
+                key = Color.rgb(45, 48, 54),
+                functionKey = Color.rgb(55, 59, 66),
+                text = Color.WHITE,
+                secondaryText = Color.rgb(230, 233, 239),
+                selectedText = Color.WHITE,
+                pressed = Color.rgb(85, 91, 102),
+                accent = Color.rgb(37, 99, 235)
+            )
         } else {
-            Palette(Color.rgb(215, 220, 227), Color.WHITE, Color.rgb(229, 231, 235), Color.rgb(17, 24, 39), Color.rgb(11, 95, 255))
+            Palette(
+                background = Color.rgb(232, 236, 242),
+                key = Color.WHITE,
+                functionKey = Color.rgb(219, 224, 232),
+                text = Color.rgb(20, 24, 31),
+                secondaryText = Color.rgb(50, 56, 66),
+                selectedText = Color.WHITE,
+                pressed = Color.rgb(196, 207, 226),
+                accent = Color.rgb(37, 99, 235)
+            )
         }
     }
 
@@ -315,7 +415,10 @@ private data class Palette(
     val key: Int,
     val functionKey: Int,
     val text: Int,
-    val pressed: Int
+    val secondaryText: Int,
+    val selectedText: Int,
+    val pressed: Int,
+    val accent: Int
 )
 
 private data class EmojiCategoryTab(
@@ -333,4 +436,40 @@ private val emojiCategories = listOf(
     EmojiCategoryTab(EmojiCategory.BOOKS, "📖"),
     EmojiCategoryTab(EmojiCategory.SYMBOLS, "!?"),
     EmojiCategoryTab(EmojiCategory.FLAGS, "⚑")
+)
+
+private val allFlagEmojis = listOf(
+    "🇸🇴", "🇩🇯", "🇰🇪", "🇪🇹", "🇪🇷", "🇺🇸", "🇬🇧", "🇫🇷",
+    "🇦🇩", "🇦🇪", "🇦🇫", "🇦🇬", "🇦🇮", "🇦🇱", "🇦🇲", "🇦🇴",
+    "🇦🇶", "🇦🇷", "🇦🇸", "🇦🇹", "🇦🇺", "🇦🇼", "🇦🇽", "🇦🇿",
+    "🇧🇦", "🇧🇧", "🇧🇩", "🇧🇪", "🇧🇫", "🇧🇬", "🇧🇭", "🇧🇮",
+    "🇧🇯", "🇧🇱", "🇧🇲", "🇧🇳", "🇧🇴", "🇧🇶", "🇧🇷", "🇧🇸",
+    "🇧🇹", "🇧🇻", "🇧🇼", "🇧🇾", "🇧🇿", "🇨🇦", "🇨🇨", "🇨🇩",
+    "🇨🇫", "🇨🇬", "🇨🇭", "🇨🇮", "🇨🇰", "🇨🇱", "🇨🇲", "🇨🇳",
+    "🇨🇴", "🇨🇵", "🇨🇷", "🇨🇺", "🇨🇻", "🇨🇼", "🇨🇽", "🇨🇾",
+    "🇨🇿", "🇩🇪", "🇩🇬", "🇩🇰", "🇩🇲", "🇩🇴", "🇩🇿", "🇪🇦",
+    "🇪🇨", "🇪🇪", "🇪🇬", "🇪🇭", "🇪🇸", "🇪🇺", "🇫🇮", "🇫🇯",
+    "🇫🇰", "🇫🇲", "🇫🇴", "🇬🇦", "🇬🇩", "🇬🇪", "🇬🇫", "🇬🇬",
+    "🇬🇭", "🇬🇮", "🇬🇱", "🇬🇲", "🇬🇳", "🇬🇵", "🇬🇶", "🇬🇷",
+    "🇬🇸", "🇬🇹", "🇬🇺", "🇬🇼", "🇬🇾", "🇭🇰", "🇭🇲", "🇭🇳",
+    "🇭🇷", "🇭🇹", "🇭🇺", "🇮🇨", "🇮🇩", "🇮🇪", "🇮🇱", "🇮🇲",
+    "🇮🇳", "🇮🇴", "🇮🇶", "🇮🇷", "🇮🇸", "🇮🇹", "🇯🇪", "🇯🇲",
+    "🇯🇴", "🇯🇵", "🇰🇬", "🇰🇭", "🇰🇮", "🇰🇲", "🇰🇳", "🇰🇵",
+    "🇰🇷", "🇰🇼", "🇰🇾", "🇰🇿", "🇱🇦", "🇱🇧", "🇱🇨", "🇱🇮",
+    "🇱🇰", "🇱🇷", "🇱🇸", "🇱🇹", "🇱🇺", "🇱🇻", "🇱🇾", "🇲🇦",
+    "🇲🇨", "🇲🇩", "🇲🇪", "🇲🇫", "🇲🇬", "🇲🇭", "🇲🇰", "🇲🇱",
+    "🇲🇲", "🇲🇳", "🇲🇴", "🇲🇵", "🇲🇶", "🇲🇷", "🇲🇸", "🇲🇹",
+    "🇲🇺", "🇲🇻", "🇲🇼", "🇲🇽", "🇲🇾", "🇲🇿", "🇳🇦", "🇳🇨",
+    "🇳🇪", "🇳🇫", "🇳🇬", "🇳🇮", "🇳🇱", "🇳🇴", "🇳🇵", "🇳🇷",
+    "🇳🇺", "🇳🇿", "🇴🇲", "🇵🇦", "🇵🇪", "🇵🇫", "🇵🇬", "🇵🇭",
+    "🇵🇰", "🇵🇱", "🇵🇲", "🇵🇳", "🇵🇷", "🇵🇸", "🇵🇹", "🇵🇼",
+    "🇵🇾", "🇶🇦", "🇷🇪", "🇷🇴", "🇷🇸", "🇷🇺", "🇷🇼", "🇸🇦",
+    "🇸🇧", "🇸🇨", "🇸🇩", "🇸🇪", "🇸🇬", "🇸🇭", "🇸🇮", "🇸🇯",
+    "🇸🇰", "🇸🇱", "🇸🇲", "🇸🇳", "🇸🇷", "🇸🇸", "🇸🇹", "🇸🇻",
+    "🇸🇽", "🇸🇾", "🇸🇿", "🇹🇦", "🇹🇨", "🇹🇩", "🇹🇫", "🇹🇬",
+    "🇹🇭", "🇹🇯", "🇹🇰", "🇹🇱", "🇹🇲", "🇹🇳", "🇹🇴", "🇹🇷",
+    "🇹🇹", "🇹🇻", "🇹🇼", "🇹🇿", "🇺🇦", "🇺🇬", "🇺🇲", "🇺🇳",
+    "🇺🇾", "🇺🇿", "🇻🇦", "🇻🇨", "🇻🇪", "🇻🇬", "🇻🇮", "🇻🇳",
+    "🇻🇺", "🇼🇫", "🇼🇸", "🇽🇰", "🇾🇪", "🇾🇹", "🇿🇦", "🇿🇲",
+    "🇿🇼", "🏳️", "🏴", "🏁", "🚩", "🏳️‍🌈", "🏳️‍⚧️", "🏴‍☠️"
 )
