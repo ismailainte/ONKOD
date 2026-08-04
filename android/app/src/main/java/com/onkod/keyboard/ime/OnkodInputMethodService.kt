@@ -1,13 +1,19 @@
 package com.onkod.keyboard.ime
 
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.inputmethodservice.InputMethodService
+import android.net.Uri
 import android.text.InputType
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
+import android.view.inputmethod.InputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.view.inputmethod.InputContentInfo
 import com.onkod.keyboard.SettingsActivity
 
 class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener {
@@ -24,16 +30,28 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private var clipboardSelectionMode = ClipboardSelectionMode.NONE
     private val selectedClipboardClips = linkedSetOf<String>()
     private var oneHandedSide = OneHandedSide.NONE
+    private var clipboardImagePreview: ClipboardImage? = null
+    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+        refreshClipboardImagePreview()
+        if (::keyboardView.isInitialized) render()
+    }
     private val backspaceRepeater = BackspaceRepeater { deleteOne() }
 
     override fun onCreate() {
         super.onCreate()
         settingsStore = SettingsStore(this)
         clipboardStore = ClipboardStore(this)
+        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).addPrimaryClipChangedListener(clipboardListener)
+    }
+
+    override fun onDestroy() {
+        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).removePrimaryClipChangedListener(clipboardListener)
+        super.onDestroy()
     }
 
     override fun onCreateInputView(): View {
         settings = settingsStore.read()
+        refreshClipboardImagePreview()
         keyboardView = OnkodKeyboardView(this)
         keyboardView.listener = this
         render()
@@ -45,6 +63,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         settings = settingsStore.read()
+        refreshClipboardImagePreview()
         shiftState = ShiftState.LOWERCASE
         symbolsVisible = false
         emojiVisible = false
@@ -59,6 +78,9 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             is KeyAction.PasteText -> {
                 commitRawText(action.value)
+            }
+            is KeyAction.InsertClipboardImage -> {
+                commitClipboardImage(action.image)
             }
             is KeyAction.PinClipboardText -> {
                 clipboardStore.pin(action.value)
@@ -198,19 +220,26 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
 
     private fun showClipboard(readSystemClipboard: Boolean = true) {
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        val text = if (readSystemClipboard) clipboard.primaryClip
-            ?.takeIf { it.itemCount > 0 }
-            ?.getItemAt(0)
-            ?.coerceToText(this)
-            ?.toString()
-            ?.takeIf { it.isNotBlank() }
-        else null
+        val image = if (readSystemClipboard) readClipboardImage(clipboard) else null
+        if (image != null) {
+            clipboardImagePreview = image
+            clipboardStore.rememberImage(image)
+        }
+        val text = if (readSystemClipboard && image == null) {
+            clipboard.primaryClip
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)
+                ?.coerceToText(this)
+                ?.toString()
+                ?.takeIf { it.isNotBlank() }
+        } else null
         if (text != null) clipboardStore.rememberRecent(text)
         val pinned = clipboardStore.readPinned()
         val recent = clipboardStore.readRecent().filterNot { pinned.contains(it) }
         keyboardView.showClipboardPanel(
             currentText = text,
             recentClips = recent,
+            recentImages = clipboardStore.readRecentImages(),
             pinnedClips = pinned,
             selectionMode = clipboardSelectionMode,
             selectedClips = selectedClipboardClips
@@ -287,7 +316,105 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             emojiVisible = emojiVisible,
             activeEmojiCategory = activeEmojiCategory,
             recentEmojis = recentEmojis,
-            oneHandedSide = oneHandedSide
+            oneHandedSide = oneHandedSide,
+            clipboardImagePreview = clipboardImagePreview
+        )
+    }
+
+    private fun refreshClipboardImagePreview() {
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val image = readClipboardImage(clipboard)
+        clipboardImagePreview = image
+        if (image != null) clipboardStore.rememberImage(image)
+    }
+
+    private fun readClipboardImage(clipboard: ClipboardManager): ClipboardImage? {
+        val clip = clipboard.primaryClip ?: return null
+        val description = clip.description ?: return null
+        for (index in 0 until clip.itemCount) {
+            val uri = clip.getItemAt(index).uri ?: continue
+            val mimeType = imageMimeTypeFor(uri, description) ?: continue
+            return ClipboardImage(uri = uri.toString(), mimeType = mimeType)
+        }
+        return null
+    }
+
+    private fun imageMimeTypeFor(uri: Uri, description: ClipDescription): String? {
+        contentResolver.getType(uri)
+            ?.takeIf { it.startsWith("image/") && it != "image/*" }
+            ?.let { return normalizeImageMimeType(it) }
+        for (index in 0 until description.mimeTypeCount) {
+            val mimeType = description.getMimeType(index)
+            if (mimeType.startsWith("image/") && mimeType != "image/*") return normalizeImageMimeType(mimeType)
+        }
+        return null
+    }
+
+    private fun normalizeImageMimeType(mimeType: String): String = when (mimeType.lowercase()) {
+        "image/jpg" -> "image/jpeg"
+        else -> mimeType.lowercase()
+    }
+
+    private fun commitClipboardImage(image: ClipboardImage) {
+        val editorInfo = currentInputEditorInfo
+        val connection = currentInputConnection
+        if (editorInfo == null || connection == null) {
+            keyboardView.showMessagePanel("This chat does not accept images from the keyboard.")
+            return
+        }
+        val supportedMimeTypes = editorInfo.contentMimeTypes.orEmpty()
+        val acceptsImage = supportedMimeTypes.any { supportedMimeType ->
+            mimeMatches(supportedMimeType, image.mimeType)
+        }
+        logImageCommitAttempt(editorInfo.packageName, supportedMimeTypes, image.mimeType, null)
+        if (!acceptsImage) {
+            keyboardView.showMessagePanel("This chat does not accept images from the keyboard.")
+            logImageCommitAttempt(editorInfo.packageName, supportedMimeTypes, image.mimeType, false)
+            return
+        }
+
+        val uri = Uri.parse(image.uri)
+        val contentInfo = InputContentInfo(
+            uri,
+            ClipDescription("Onkod image", arrayOf(image.mimeType)),
+            null
+        )
+        runCatching {
+            grantUriPermission(editorInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val success = connection.commitContent(
+            contentInfo,
+            InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION,
+            null
+        )
+        logImageCommitAttempt(editorInfo.packageName, supportedMimeTypes, image.mimeType, success)
+        if (success) {
+            clipboardImagePreview = null
+            render()
+        } else {
+            keyboardView.showMessagePanel("This chat does not accept images from the keyboard.")
+        }
+    }
+
+    private fun mimeMatches(supportedMimeType: String, attemptedMimeType: String): Boolean {
+        if (supportedMimeType == attemptedMimeType) return true
+        if (supportedMimeType == "image/*" && attemptedMimeType.startsWith("image/")) return true
+        val slash = supportedMimeType.indexOf('/')
+        return slash > 0 &&
+            supportedMimeType.substring(slash + 1) == "*" &&
+            attemptedMimeType.startsWith("${supportedMimeType.substring(0, slash)}/")
+    }
+
+    private fun logImageCommitAttempt(
+        packageName: String?,
+        supportedMimeTypes: Array<out String>,
+        attemptedMimeType: String,
+        success: Boolean?
+    ) {
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+        Log.d(
+            "OnkodImageClipboard",
+            "package=$packageName supported=${supportedMimeTypes.joinToString()} attempted=$attemptedMimeType success=${success ?: "pending"}"
         )
     }
 

@@ -2,6 +2,7 @@ package com.onkod.keyboard.ime
 
 import android.content.Context
 import org.json.JSONArray
+import org.json.JSONObject
 
 class ClipboardStore(context: Context) {
     private val preferences = context.getSharedPreferences("onkod_clipboard", Context.MODE_PRIVATE)
@@ -14,11 +15,33 @@ class ClipboardStore(context: Context) {
         return readList("recent")
     }
 
+    fun readRecentImages(): List<ClipboardImage> {
+        val raw = preferences.getString("recent_images", "[]").orEmpty()
+        return runCatching {
+            val array = JSONArray(raw)
+            List(array.length()) { index ->
+                val item = array.optJSONObject(index)
+                ClipboardImage(
+                    uri = item?.optString("uri").orEmpty(),
+                    mimeType = item?.optString("mimeType").orEmpty()
+                )
+            }.filter { it.uri.isNotBlank() && it.mimeType.startsWith("image/") }
+                .distinctBy { it.uri }
+        }.getOrDefault(emptyList())
+    }
+
     fun rememberRecent(value: String): List<String> {
         val cleanValue = value.trim()
         if (cleanValue.isBlank()) return readRecent()
         val recent = (listOf(cleanValue) + readRecent().filterNot { it == cleanValue }).take(24)
         writeList("recent", recent)
+        return recent
+    }
+
+    fun rememberImage(image: ClipboardImage): List<ClipboardImage> {
+        if (image.uri.isBlank() || !image.mimeType.startsWith("image/")) return readRecentImages()
+        val recent = (listOf(image) + readRecentImages().filterNot { it.uri == image.uri }).take(24)
+        writeImages(recent)
         return recent
     }
 
@@ -55,6 +78,19 @@ class ClipboardStore(context: Context) {
     fun clearRecent(): List<String> {
         writeList("recent", emptyList())
         return emptyList()
+    }
+
+    private fun writeImages(values: List<ClipboardImage>) {
+        val array = JSONArray()
+        values.forEach { image ->
+            array.put(JSONObject().apply {
+                put("uri", image.uri)
+                put("mimeType", image.mimeType)
+            })
+        }
+        preferences.edit()
+            .putString("recent_images", array.toString())
+            .apply()
     }
 
     private fun writePinned(values: List<String>) {

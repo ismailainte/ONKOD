@@ -3,6 +3,7 @@ package com.onkod.keyboard.ime
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -49,7 +50,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         emojiVisible: Boolean,
         activeEmojiCategory: EmojiCategory,
         recentEmojis: List<String>,
-        oneHandedSide: OneHandedSide = OneHandedSide.NONE
+        oneHandedSide: OneHandedSide = OneHandedSide.NONE,
+        clipboardImagePreview: ClipboardImage? = null
     ) {
         this.settings = settings
         activeLongPressOptions = layout.longPressOptions
@@ -78,7 +80,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             if (oneHandedSide == OneHandedSide.LEFT) addView(sidePanel)
         }
 
-        if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible)
+        if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible, clipboardImagePreview)
         when {
             emojiVisible -> addEmojiPanel(palette, activeEmojiCategory, recentEmojis)
             symbolsVisible -> addSymbolsPanel(palette, symbolsPage, layout.spaceLabel)
@@ -98,6 +100,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     fun showClipboardPanel(
         currentText: String?,
         recentClips: List<String>,
+        recentImages: List<ClipboardImage> = emptyList(),
         pinnedClips: List<String>,
         selectionMode: ClipboardSelectionMode = ClipboardSelectionMode.NONE,
         selectedClips: Set<String> = emptySet()
@@ -110,6 +113,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         setBackgroundColor(palette.background)
 
         addClipboardTopBar(currentText, pinnedClips, palette, selectionMode, selectedClips)
+        addClipboardImageSection(recentImages, palette)
         addClipboardSection("Recent", recentClips, palette, emptyLabel = "Nothing copied yet", selectionMode, selectedClips)
         addClipboardSection("Pinned", pinnedClips, palette, emptyLabel = "No pinned clips", selectionMode, selectedClips)
     }
@@ -121,7 +125,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         setPadding(8.dp, 8.dp, 8.dp, bottomSafePadding())
         val palette = palette(settings.theme)
         setBackgroundColor(palette.background)
-        addToolbar(toolbarKeys, palette, emojiVisible = false)
+        addToolbar(toolbarKeys, palette, emojiVisible = false, clipboardImagePreview = null)
 
         val row = LinearLayout(context).apply {
             orientation = HORIZONTAL
@@ -417,7 +421,12 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             }
         }
 
-    private fun addToolbar(keys: List<KeyboardKey>, palette: Palette, emojiVisible: Boolean) {
+    private fun addToolbar(
+        keys: List<KeyboardKey>,
+        palette: Palette,
+        emojiVisible: Boolean,
+        clipboardImagePreview: ClipboardImage?
+    ) {
         val row = row(height = 38.dp)
         row.background = KeyDrawable(
             normalColor = toolbarSurfaceColor(palette),
@@ -432,7 +441,74 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             }
             row.addView(keyView(toolbarKey, palette, function = true, textSizeSp = 14f, toolbarIcon = true))
         }
+        clipboardImagePreview?.let { image ->
+            row.addView(toolbarImagePreview(image, palette))
+        }
         addView(row)
+    }
+
+    private fun toolbarImagePreview(image: ClipboardImage, palette: Palette): ImageView =
+        ImageView(context).apply {
+            contentDescription = "Clipboard image"
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setImageURI(Uri.parse(image.uri))
+            background = KeyDrawable(
+                normalColor = toolbarPressedColor(palette),
+                pressedColor = palette.pressed,
+                radius = 10.dp.toFloat()
+            )
+            clipToOutline = true
+            layoutParams = LayoutParams(44.dp, LayoutParams.MATCH_PARENT).apply {
+                leftMargin = 3.dp
+                rightMargin = 3.dp
+            }
+            setOnClickListener {
+                feedback()
+                listener?.onKey(KeyAction.InsertClipboardImage(image))
+            }
+        }
+
+    private fun addClipboardImageSection(images: List<ClipboardImage>, palette: Palette) {
+        if (images.isEmpty()) return
+        addView(TextView(context).apply {
+            text = "Images"
+            setTextColor(palette.secondaryText)
+            textSize = 15f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 28.dp)
+        })
+        val scroll = HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            overScrollMode = OVER_SCROLL_NEVER
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 86.dp).apply {
+                bottomMargin = 10.dp
+            }
+        }
+        val row = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+        }
+        images.take(12).forEach { image ->
+            row.addView(ImageView(context).apply {
+                contentDescription = "Clipboard image"
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setImageURI(Uri.parse(image.uri))
+                background = KeyDrawable(
+                    normalColor = palette.key,
+                    pressedColor = palette.pressed,
+                    radius = 14.dp.toFloat()
+                )
+                layoutParams = LinearLayout.LayoutParams(86.dp, 80.dp).apply {
+                    rightMargin = 10.dp
+                }
+                setOnClickListener {
+                    feedback()
+                    listener?.onKey(KeyAction.InsertClipboardImage(image))
+                }
+            })
+        }
+        scroll.addView(row)
+        addKeyboardView(scroll)
     }
 
     private fun addLetters(layout: KeyboardLayout, shiftState: ShiftState, palette: Palette) {

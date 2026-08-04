@@ -29,9 +29,15 @@ data class KeyboardKey(
     val weight: Float = 1f
 )
 
+data class ClipboardImage(
+    val uri: String,
+    val mimeType: String
+)
+
 sealed class KeyAction {
     data class Text(val value: String) : KeyAction()
     data class PasteText(val value: String) : KeyAction()
+    data class InsertClipboardImage(val image: ClipboardImage) : KeyAction()
     data class PinClipboardText(val value: String) : KeyAction()
     data class UnpinClipboardText(val value: String) : KeyAction()
     data class ToggleClipboardSelection(val value: String) : KeyAction()
