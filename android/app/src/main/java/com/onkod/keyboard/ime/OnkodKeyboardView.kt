@@ -218,7 +218,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                 content.addView(ImageView(context).apply {
                     contentDescription = "Clipboard image"
                     scaleType = ImageView.ScaleType.CENTER_CROP
-                    setImageURI(Uri.parse(suggestion.image.uri))
+                    setClipboardImageSafely(suggestion.image.uri, palette.text)
                     background = KeyDrawable(
                         normalColor = palette.key,
                         pressedColor = palette.key,
@@ -615,7 +615,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             addView(ImageView(context).apply {
                 contentDescription = "Clipboard image"
                 scaleType = ImageView.ScaleType.CENTER_CROP
-                setImageURI(Uri.parse(image.uri))
+                setClipboardImageSafely(image.uri, palette.text)
                 clipToOutline = true
                 layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             })
@@ -689,7 +689,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             row.addView(ImageView(context).apply {
                 contentDescription = "Clipboard image"
                 scaleType = ImageView.ScaleType.CENTER_CROP
-                setImageURI(Uri.parse(image.uri))
+                setClipboardImageSafely(image.uri, palette.text)
                 background = KeyDrawable(
                     normalColor = palette.key,
                     pressedColor = palette.pressed,
@@ -1138,6 +1138,20 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             0
         }
         return if (navigationInset > 0) 12.dp else 8.dp
+    }
+
+    private fun ImageView.setClipboardImageSafely(uriString: String, fallbackColor: Int) {
+        clearColorFilter()
+        val loaded = runCatching {
+            setImageURI(Uri.parse(uriString))
+            drawable != null
+        }.getOrDefault(false)
+
+        if (!loaded) {
+            scaleType = ImageView.ScaleType.CENTER
+            setImageResource(R.drawable.ic_toolbar_clipboard)
+            setColorFilter(fallbackColor)
+        }
     }
 }
 
