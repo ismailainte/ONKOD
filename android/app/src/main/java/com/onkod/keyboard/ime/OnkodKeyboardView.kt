@@ -9,6 +9,7 @@ import android.os.Vibrator
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.WindowInsets
 import android.widget.PopupWindow
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -30,7 +31,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     init {
         orientation = VERTICAL
-        setPadding(8.dp, 8.dp, 8.dp, 8.dp)
+        setPadding(8.dp, 8.dp, 8.dp, bottomSafePadding())
     }
 
     fun render(
@@ -501,6 +502,15 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
+
+    private fun bottomSafePadding(): Int {
+        val navigationInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            rootWindowInsets?.getInsets(WindowInsets.Type.navigationBars())?.bottom ?: 0
+        } else {
+            0
+        }
+        return maxOf(72.dp, navigationInset + 16.dp)
+    }
 }
 
 private data class Palette(
