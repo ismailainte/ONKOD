@@ -10,6 +10,7 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowInsets
+import android.widget.FrameLayout
 import android.widget.PopupWindow
 import android.widget.HorizontalScrollView
 import android.widget.ImageButton
@@ -66,20 +67,32 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
-    fun showClipboardPanel(currentText: String?, recentClips: List<String>, pinnedClips: List<String>) {
+    fun showClipboardPanel(
+        currentText: String?,
+        recentClips: List<String>,
+        pinnedClips: List<String>,
+        selectionMode: ClipboardSelectionMode = ClipboardSelectionMode.NONE,
+        selectedClips: Set<String> = emptySet()
+    ) {
         removeAllViews()
         val palette = palette(settings.theme)
         setBackgroundColor(palette.background)
 
-        addClipboardTopBar(currentText, pinnedClips, palette)
-        addClipboardSection("Recent", recentClips, palette, emptyLabel = "Nothing copied yet")
-        addClipboardSection("Pinned", pinnedClips, palette, emptyLabel = "No pinned clips")
+        addClipboardTopBar(currentText, pinnedClips, palette, selectionMode, selectedClips)
+        addClipboardSection("Recent", recentClips, palette, emptyLabel = "Nothing copied yet", selectionMode, selectedClips)
+        addClipboardSection("Pinned", pinnedClips, palette, emptyLabel = "No pinned clips", selectionMode, selectedClips)
     }
 
     private fun clipLabel(value: String): String =
         value.replace(Regex("\\s+"), " ").let { if (it.length > 54) "${it.take(54)}…" else it }
 
-    private fun addClipboardTopBar(currentText: String?, pinnedClips: List<String>, palette: Palette) {
+    private fun addClipboardTopBar(
+        currentText: String?,
+        pinnedClips: List<String>,
+        palette: Palette,
+        selectionMode: ClipboardSelectionMode,
+        selectedClips: Set<String>
+    ) {
         val row = LinearLayout(context).apply {
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -87,6 +100,57 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                 bottomMargin = 6.dp
             }
         }
+        if (selectionMode != ClipboardSelectionMode.NONE) {
+            row.addView(clipboardTopButton(R.drawable.ic_clipboard_keyboard, "Back", KeyAction.ExitClipboardSelection, palette, 0.75f))
+            row.addView(TextView(context).apply {
+                text = if (selectedClips.isEmpty()) "○  All" else "✓  All"
+                setTextColor(palette.text)
+                textSize = 20f
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 2.5f)
+                setOnClickListener {
+                    feedback()
+                    listener?.onKey(KeyAction.SelectAllClipboard)
+                }
+            })
+            row.addView(TextView(context).apply {
+                text = selectedClips.size.toString()
+                setTextColor(palette.text)
+                textSize = 20f
+                gravity = Gravity.CENTER
+                layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 0.8f)
+            })
+            row.addView(TextView(context).apply {
+                text = "|"
+                setTextColor(palette.secondaryText)
+                textSize = 22f
+                gravity = Gravity.CENTER
+                layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 0.35f)
+            })
+            row.addView(TextView(context).apply {
+                text = if (selectionMode == ClipboardSelectionMode.DELETE) "Delete" else "Done"
+                setTextColor(if (selectedClips.isEmpty()) palette.secondaryText else palette.text)
+                textSize = 20f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1.4f)
+                setOnClickListener {
+                    if (selectedClips.isNotEmpty() || selectionMode == ClipboardSelectionMode.PIN) {
+                        feedback()
+                        listener?.onKey(
+                            if (selectionMode == ClipboardSelectionMode.DELETE) {
+                                KeyAction.ConfirmClipboardDeleteSelection
+                            } else {
+                                KeyAction.ConfirmClipboardPinSelection
+                            }
+                        )
+                    }
+                }
+            })
+            addView(row)
+            return
+        }
+
         row.addView(clipboardTopButton(R.drawable.ic_clipboard_keyboard, "Keyboard", KeyAction.Abc, palette, 0.8f))
         row.addView(TextView(context).apply {
             text = "Clipboard"
@@ -94,14 +158,10 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             textSize = 22f
             gravity = Gravity.CENTER_VERTICAL
             typeface = android.graphics.Typeface.DEFAULT
-            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 3.4f)
+                layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 3.4f)
         })
-        val pinAction = currentText
-            ?.takeIf { it.isNotBlank() }
-            ?.let { if (pinnedClips.contains(it)) KeyAction.UnpinClipboardText(it) else KeyAction.PinClipboardText(it) }
-            ?: KeyAction.Clipboard
-        row.addView(clipboardTopButton(R.drawable.ic_clipboard_pin, "Pin clipboard text", pinAction, palette, 0.8f))
-        row.addView(clipboardTopButton(R.drawable.ic_clipboard_delete, "Clear recent clipboard", KeyAction.ClearClipboardRecent, palette, 0.8f))
+        row.addView(clipboardTopButton(R.drawable.ic_clipboard_pin, "Pin clipboard text", KeyAction.StartClipboardPinSelection, palette, 0.8f))
+        row.addView(clipboardTopButton(R.drawable.ic_clipboard_delete, "Delete clipboard text", KeyAction.StartClipboardDeleteSelection, palette, 0.8f))
         addView(row)
     }
 
@@ -120,7 +180,14 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             }
         }
 
-    private fun addClipboardSection(title: String, clips: List<String>, palette: Palette, emptyLabel: String) {
+    private fun addClipboardSection(
+        title: String,
+        clips: List<String>,
+        palette: Palette,
+        emptyLabel: String,
+        selectionMode: ClipboardSelectionMode,
+        selectedClips: Set<String>
+    ) {
         addView(TextView(context).apply {
             text = title
             setTextColor(palette.secondaryText)
@@ -144,15 +211,44 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             row.addView(clipboardCard(emptyLabel, null, palette, muted = true))
         } else {
             visibleClips.forEach { clip ->
-                row.addView(clipboardCard(clipLabel(clip), KeyAction.PasteText(clip), palette, muted = false))
+                row.addView(
+                    clipboardCard(
+                        label = clipLabel(clip),
+                        action = if (selectionMode == ClipboardSelectionMode.NONE) {
+                            KeyAction.PasteText(clip)
+                        } else {
+                            KeyAction.ToggleClipboardSelection(clip)
+                        },
+                        palette = palette,
+                        muted = false,
+                        selected = selectedClips.contains(clip),
+                        selectable = selectionMode != ClipboardSelectionMode.NONE
+                    )
+                )
             }
         }
         scroll.addView(row)
         addView(scroll)
     }
 
-    private fun clipboardCard(label: String, action: KeyAction?, palette: Palette, muted: Boolean): TextView =
-        TextView(context).apply {
+    private fun clipboardCard(
+        label: String,
+        action: KeyAction?,
+        palette: Palette,
+        muted: Boolean,
+        selected: Boolean = false,
+        selectable: Boolean = false
+    ): FrameLayout =
+        FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(150.dp, 76.dp).apply {
+                rightMargin = 10.dp
+            }
+            background = KeyDrawable(
+                normalColor = if (selected) palette.pressed else palette.key,
+                pressedColor = palette.pressed,
+                radius = 14.dp.toFloat()
+            )
+            val labelView = TextView(context).apply {
             text = label
             setTextColor(if (muted) palette.secondaryText else palette.text)
             textSize = 18f
@@ -160,13 +256,26 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             maxLines = 3
             ellipsize = TextUtils.TruncateAt.END
             setPadding(12.dp, 10.dp, 12.dp, 10.dp)
-            background = KeyDrawable(
-                normalColor = palette.key,
-                pressedColor = palette.pressed,
-                radius = 14.dp.toFloat()
-            )
-            layoutParams = LinearLayout.LayoutParams(150.dp, 76.dp).apply {
-                rightMargin = 10.dp
+                layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            }
+            addView(labelView)
+            if (selectable) {
+                addView(TextView(context).apply {
+                    text = if (selected) "✓" else "○"
+                    setTextColor(if (selected) palette.selectedText else palette.text)
+                    textSize = 22f
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                    background = KeyDrawable(
+                        normalColor = if (selected) palette.accent else Color.TRANSPARENT,
+                        pressedColor = palette.accent,
+                        radius = 17.dp.toFloat()
+                    )
+                    layoutParams = FrameLayout.LayoutParams(34.dp, 34.dp, Gravity.START or Gravity.TOP).apply {
+                        leftMargin = 6.dp
+                        topMargin = 6.dp
+                    }
+                })
             }
             if (action != null) {
                 setOnClickListener {

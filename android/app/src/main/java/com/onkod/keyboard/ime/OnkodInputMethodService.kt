@@ -19,6 +19,8 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private var emojiVisible = false
     private var activeEmojiCategory = EmojiCategory.FACES
     private val recentEmojis = mutableListOf<String>()
+    private var clipboardSelectionMode = ClipboardSelectionMode.NONE
+    private val selectedClipboardClips = linkedSetOf<String>()
     private val backspaceRepeater = BackspaceRepeater { deleteOne() }
 
     override fun onCreate() {
@@ -63,9 +65,55 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 clipboardStore.unpin(action.value)
                 showClipboard()
             }
+            is KeyAction.ToggleClipboardSelection -> {
+                if (selectedClipboardClips.contains(action.value)) {
+                    selectedClipboardClips.remove(action.value)
+                } else {
+                    selectedClipboardClips.add(action.value)
+                }
+                showClipboard(readSystemClipboard = false)
+            }
             KeyAction.ClearClipboardRecent -> {
                 clipboardStore.clearRecent()
                 showClipboard()
+            }
+            KeyAction.StartClipboardPinSelection -> {
+                clipboardSelectionMode = ClipboardSelectionMode.PIN
+                selectedClipboardClips.clear()
+                selectedClipboardClips.addAll(clipboardStore.readPinned())
+                showClipboard(readSystemClipboard = false)
+            }
+            KeyAction.StartClipboardDeleteSelection -> {
+                clipboardSelectionMode = ClipboardSelectionMode.DELETE
+                selectedClipboardClips.clear()
+                showClipboard(readSystemClipboard = false)
+            }
+            KeyAction.SelectAllClipboard -> {
+                val allClips = (clipboardStore.readRecent() + clipboardStore.readPinned()).distinct()
+                if (selectedClipboardClips.size == allClips.size) {
+                    selectedClipboardClips.clear()
+                } else {
+                    selectedClipboardClips.clear()
+                    selectedClipboardClips.addAll(allClips)
+                }
+                showClipboard(readSystemClipboard = false)
+            }
+            KeyAction.ConfirmClipboardPinSelection -> {
+                clipboardStore.replacePinned(selectedClipboardClips.toList())
+                clipboardSelectionMode = ClipboardSelectionMode.NONE
+                selectedClipboardClips.clear()
+                showClipboard(readSystemClipboard = false)
+            }
+            KeyAction.ConfirmClipboardDeleteSelection -> {
+                clipboardStore.delete(selectedClipboardClips)
+                clipboardSelectionMode = ClipboardSelectionMode.NONE
+                selectedClipboardClips.clear()
+                showClipboard(readSystemClipboard = false)
+            }
+            KeyAction.ExitClipboardSelection -> {
+                clipboardSelectionMode = ClipboardSelectionMode.NONE
+                selectedClipboardClips.clear()
+                showClipboard(readSystemClipboard = false)
             }
             is KeyAction.EmojiCategorySelect -> {
                 activeEmojiCategory = action.category
@@ -133,21 +181,24 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         currentInputConnection?.commitText(value, 1)
     }
 
-    private fun showClipboard() {
+    private fun showClipboard(readSystemClipboard: Boolean = true) {
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        val text = clipboard.primaryClip
+        val text = if (readSystemClipboard) clipboard.primaryClip
             ?.takeIf { it.itemCount > 0 }
             ?.getItemAt(0)
             ?.coerceToText(this)
             ?.toString()
             ?.takeIf { it.isNotBlank() }
+        else null
         if (text != null) clipboardStore.rememberRecent(text)
         val pinned = clipboardStore.readPinned()
         val recent = clipboardStore.readRecent().filterNot { pinned.contains(it) }
         keyboardView.showClipboardPanel(
             currentText = text,
             recentClips = recent,
-            pinnedClips = pinned
+            pinnedClips = pinned,
+            selectionMode = clipboardSelectionMode,
+            selectedClips = selectedClipboardClips
         )
     }
 

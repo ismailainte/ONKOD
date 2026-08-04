@@ -36,6 +36,22 @@ class ClipboardStore(context: Context) {
         return pinned
     }
 
+    fun replacePinned(values: List<String>): List<String> {
+        val pinned = values
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(24)
+        writePinned(pinned)
+        return pinned
+    }
+
+    fun delete(values: Set<String>) {
+        if (values.isEmpty()) return
+        writeList("recent", readRecent().filterNot { values.contains(it) })
+        writePinned(readPinned().filterNot { values.contains(it) })
+    }
+
     fun clearRecent(): List<String> {
         writeList("recent", emptyList())
         return emptyList()

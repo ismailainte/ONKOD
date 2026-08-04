@@ -7,6 +7,7 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class ShiftState { LOWERCASE, SHIFT, CAPS }
 enum class LongPressDelay { NORMAL, SHORT, LONG }
 enum class EmojiCategory { HISTORY, FACES, ANIMALS, FOOD, HOME, SPORTS, BOOKS, SYMBOLS, FLAGS }
+enum class ClipboardSelectionMode { NONE, PIN, DELETE }
 
 data class KeyboardSettings(
     val layoutGroup: LayoutGroup = LayoutGroup.QWERTY,
@@ -32,9 +33,16 @@ sealed class KeyAction {
     data class PasteText(val value: String) : KeyAction()
     data class PinClipboardText(val value: String) : KeyAction()
     data class UnpinClipboardText(val value: String) : KeyAction()
+    data class ToggleClipboardSelection(val value: String) : KeyAction()
     data class EmojiCategorySelect(val category: EmojiCategory) : KeyAction()
     data class SymbolsPage(val page: Int) : KeyAction()
     data object ClearClipboardRecent : KeyAction()
+    data object StartClipboardPinSelection : KeyAction()
+    data object StartClipboardDeleteSelection : KeyAction()
+    data object SelectAllClipboard : KeyAction()
+    data object ConfirmClipboardPinSelection : KeyAction()
+    data object ConfirmClipboardDeleteSelection : KeyAction()
+    data object ExitClipboardSelection : KeyAction()
     data object Shift : KeyAction()
     data object Backspace : KeyAction()
     data object Symbols : KeyAction()
