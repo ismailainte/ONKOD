@@ -205,10 +205,12 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         }
         val row = LinearLayout(context).apply {
             orientation = HORIZONTAL
+            minimumWidth = resources.displayMetrics.widthPixels - paddingLeft - paddingRight
         }
         val visibleClips = clips.take(12)
         if (visibleClips.isEmpty()) {
-            row.addView(clipboardCard(emptyLabel, null, palette, muted = true))
+            row.gravity = Gravity.CENTER
+            row.addView(clipboardCard(emptyLabel, null, palette, muted = true, fillWidth = true))
         } else {
             visibleClips.forEach { clip ->
                 row.addView(
@@ -237,10 +239,14 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         palette: Palette,
         muted: Boolean,
         selected: Boolean = false,
-        selectable: Boolean = false
+        selectable: Boolean = false,
+        fillWidth: Boolean = false
     ): FrameLayout =
         FrameLayout(context).apply {
-            layoutParams = LinearLayout.LayoutParams(150.dp, 76.dp).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                if (fillWidth) LinearLayout.LayoutParams.MATCH_PARENT else 150.dp,
+                76.dp
+            ).apply {
                 rightMargin = 10.dp
             }
             if (!muted) {
