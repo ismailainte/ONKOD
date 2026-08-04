@@ -117,19 +117,19 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             is KeyAction.InsertClipboardImage -> {
                 commitClipboardImage(action.image)
             }
-            is KeyAction.PinClipboardText -> {
-                clipboardStore.pin(action.value)
+            is KeyAction.PinClipboardClip -> {
+                clipboardStore.pinClip(action.clip)
                 showClipboard()
             }
-            is KeyAction.UnpinClipboardText -> {
-                clipboardStore.unpin(action.value)
+            is KeyAction.UnpinClipboardClip -> {
+                clipboardStore.unpinClip(action.clip)
                 showClipboard()
             }
             is KeyAction.ToggleClipboardSelection -> {
-                if (selectedClipboardClips.contains(action.value)) {
-                    selectedClipboardClips.remove(action.value)
+                if (selectedClipboardClips.contains(action.id)) {
+                    selectedClipboardClips.remove(action.id)
                 } else {
-                    selectedClipboardClips.add(action.value)
+                    selectedClipboardClips.add(action.id)
                 }
                 showClipboard(readSystemClipboard = false)
             }
@@ -140,7 +140,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             KeyAction.StartClipboardPinSelection -> {
                 clipboardSelectionMode = ClipboardSelectionMode.PIN
                 selectedClipboardClips.clear()
-                selectedClipboardClips.addAll(clipboardStore.readPinned())
+                selectedClipboardClips.addAll(clipboardStore.readPinnedClips().map { it.id })
                 showClipboard(readSystemClipboard = false)
             }
             KeyAction.StartClipboardDeleteSelection -> {
@@ -149,23 +149,24 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 showClipboard(readSystemClipboard = false)
             }
             KeyAction.SelectAllClipboard -> {
-                val allClips = (clipboardStore.readRecent() + clipboardStore.readPinned()).distinct()
+                val allClips = (clipboardStore.readRecentClips() + clipboardStore.readPinnedClips()).distinctBy { it.id }
                 if (selectedClipboardClips.size == allClips.size) {
                     selectedClipboardClips.clear()
                 } else {
                     selectedClipboardClips.clear()
-                    selectedClipboardClips.addAll(allClips)
+                    selectedClipboardClips.addAll(allClips.map { it.id })
                 }
                 showClipboard(readSystemClipboard = false)
             }
             KeyAction.ConfirmClipboardPinSelection -> {
-                clipboardStore.replacePinned(selectedClipboardClips.toList())
+                val allClips = (clipboardStore.readRecentClips() + clipboardStore.readPinnedClips()).distinctBy { it.id }
+                clipboardStore.replacePinnedClips(allClips.filter { selectedClipboardClips.contains(it.id) })
                 clipboardSelectionMode = ClipboardSelectionMode.NONE
                 selectedClipboardClips.clear()
                 showClipboard(readSystemClipboard = false)
             }
             KeyAction.ConfirmClipboardDeleteSelection -> {
-                clipboardStore.delete(selectedClipboardClips)
+                clipboardStore.deleteClips(selectedClipboardClips)
                 clipboardSelectionMode = ClipboardSelectionMode.NONE
                 selectedClipboardClips.clear()
                 showClipboard(readSystemClipboard = false)
@@ -269,12 +270,12 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 ?.takeIf { it.isNotBlank() }
         } else null
         if (text != null) clipboardStore.rememberRecent(text)
-        val pinned = clipboardStore.readPinned()
-        val recent = clipboardStore.readRecent().filterNot { pinned.contains(it) }
+        val pinned = clipboardStore.readPinnedClips()
+        val pinnedIds = pinned.map { it.id }.toSet()
+        val recent = clipboardStore.readRecentClips().filterNot { pinnedIds.contains(it.id) }
         keyboardView.showClipboardPanel(
             currentText = text,
             recentClips = recent,
-            recentImages = clipboardStore.readRecentImages(),
             pinnedClips = pinned,
             selectionMode = clipboardSelectionMode,
             selectedClips = selectedClipboardClips

@@ -101,9 +101,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     fun showClipboardPanel(
         currentText: String?,
-        recentClips: List<String>,
-        recentImages: List<ClipboardImage> = emptyList(),
-        pinnedClips: List<String>,
+        recentClips: List<ClipboardClip>,
+        pinnedClips: List<ClipboardClip>,
         selectionMode: ClipboardSelectionMode = ClipboardSelectionMode.NONE,
         selectedClips: Set<String> = emptySet()
     ) {
@@ -115,7 +114,6 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         setBackgroundColor(palette.background)
 
         addClipboardTopBar(currentText, pinnedClips, palette, selectionMode, selectedClips)
-        addClipboardImageSection(recentImages, palette)
         addClipboardSection("Recent", recentClips, palette, emptyLabel = "Nothing copied yet", selectionMode, selectedClips)
         addClipboardSection("Pinned", pinnedClips, palette, emptyLabel = "No pinned clips", selectionMode, selectedClips)
     }
@@ -235,7 +233,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     private fun addClipboardTopBar(
         currentText: String?,
-        pinnedClips: List<String>,
+        pinnedClips: List<ClipboardClip>,
         palette: Palette,
         selectionMode: ClipboardSelectionMode,
         selectedClips: Set<String>
@@ -402,7 +400,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     private fun addClipboardSection(
         title: String,
-        clips: List<String>,
+        clips: List<ClipboardClip>,
         palette: Palette,
         emptyLabel: String,
         selectionMode: ClipboardSelectionMode,
@@ -433,19 +431,33 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             row.addView(clipboardCard(emptyLabel, null, palette, muted = true, fillWidth = true))
         } else {
             visibleClips.forEach { clip ->
+                val action = if (selectionMode == ClipboardSelectionMode.NONE) {
+                    when (clip) {
+                        is ClipboardClip.Text -> KeyAction.PasteText(clip.value)
+                        is ClipboardClip.Image -> KeyAction.InsertClipboardImage(clip.image)
+                    }
+                } else {
+                    KeyAction.ToggleClipboardSelection(clip.id)
+                }
+                val selected = selectedClips.contains(clip.id)
                 row.addView(
-                    clipboardCard(
-                        label = clipLabel(clip),
-                        action = if (selectionMode == ClipboardSelectionMode.NONE) {
-                            KeyAction.PasteText(clip)
-                        } else {
-                            KeyAction.ToggleClipboardSelection(clip)
-                        },
-                        palette = palette,
-                        muted = false,
-                        selected = selectedClips.contains(clip),
-                        selectable = selectionMode != ClipboardSelectionMode.NONE
-                    )
+                    when (clip) {
+                        is ClipboardClip.Text -> clipboardCard(
+                            label = clipLabel(clip.value),
+                            action = action,
+                            palette = palette,
+                            muted = false,
+                            selected = selected,
+                            selectable = selectionMode != ClipboardSelectionMode.NONE
+                        )
+                        is ClipboardClip.Image -> clipboardImageCard(
+                            image = clip.image,
+                            action = action,
+                            palette = palette,
+                            selected = selected,
+                            selectable = selectionMode != ClipboardSelectionMode.NONE
+                        )
+                    }
                 )
             }
         }
@@ -510,6 +522,53 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                     feedback()
                     listener?.onKey(action)
                 }
+            }
+        }
+
+    private fun clipboardImageCard(
+        image: ClipboardImage,
+        action: KeyAction,
+        palette: Palette,
+        selected: Boolean = false,
+        selectable: Boolean = false
+    ): FrameLayout =
+        FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(150.dp, 76.dp).apply {
+                rightMargin = 10.dp
+            }
+            background = KeyDrawable(
+                normalColor = if (selected) palette.pressed else palette.key,
+                pressedColor = palette.pressed,
+                radius = 14.dp.toFloat()
+            )
+            addView(ImageView(context).apply {
+                contentDescription = "Clipboard image"
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setImageURI(Uri.parse(image.uri))
+                clipToOutline = true
+                layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            })
+            if (selectable) {
+                addView(TextView(context).apply {
+                    text = if (selected) "✓" else "○"
+                    setTextColor(if (selected) palette.selectedText else palette.text)
+                    textSize = 22f
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                    background = KeyDrawable(
+                        normalColor = if (selected) palette.accent else Color.TRANSPARENT,
+                        pressedColor = palette.accent,
+                        radius = 17.dp.toFloat()
+                    )
+                    layoutParams = FrameLayout.LayoutParams(34.dp, 34.dp, Gravity.START or Gravity.TOP).apply {
+                        leftMargin = 6.dp
+                        topMargin = 6.dp
+                    }
+                })
+            }
+            setOnClickListener {
+                feedback()
+                listener?.onKey(action)
             }
         }
 

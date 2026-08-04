@@ -34,6 +34,18 @@ data class ClipboardImage(
     val mimeType: String
 )
 
+sealed class ClipboardClip {
+    abstract val id: String
+
+    data class Text(val value: String) : ClipboardClip() {
+        override val id: String = ClipboardIdentity.text("text/plain", value, null)
+    }
+
+    data class Image(val image: ClipboardImage) : ClipboardClip() {
+        override val id: String = ClipboardIdentity.image(image.mimeType, image.mimeType, image.uri, null)
+    }
+}
+
 sealed class ClipboardSuggestion {
     data class Text(val value: String, val sensitive: Boolean = false, val id: String) : ClipboardSuggestion()
     data class Image(val image: ClipboardImage, val id: String) : ClipboardSuggestion()
@@ -43,9 +55,9 @@ sealed class KeyAction {
     data class Text(val value: String) : KeyAction()
     data class PasteText(val value: String) : KeyAction()
     data class InsertClipboardImage(val image: ClipboardImage) : KeyAction()
-    data class PinClipboardText(val value: String) : KeyAction()
-    data class UnpinClipboardText(val value: String) : KeyAction()
-    data class ToggleClipboardSelection(val value: String) : KeyAction()
+    data class PinClipboardClip(val clip: ClipboardClip) : KeyAction()
+    data class UnpinClipboardClip(val clip: ClipboardClip) : KeyAction()
+    data class ToggleClipboardSelection(val id: String) : KeyAction()
     data class EmojiCategorySelect(val category: EmojiCategory) : KeyAction()
     data class SymbolsPage(val page: Int) : KeyAction()
     data object ClearClipboardRecent : KeyAction()
