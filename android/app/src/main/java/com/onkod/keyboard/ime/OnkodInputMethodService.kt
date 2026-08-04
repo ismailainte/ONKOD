@@ -40,6 +40,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private val selectedClipboardClips = linkedSetOf<String>()
     private var oneHandedSide = OneHandedSide.NONE
     private var morePanelVisible = false
+    private var oneHandedChooserVisible = false
     private var clipboardSuggestion: ClipboardSuggestion? = null
     private var currentClipboardId: String? = null
     private var activePackageName: String? = null
@@ -103,6 +104,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         symbolsVisible = false
         emojiVisible = false
         morePanelVisible = false
+        oneHandedChooserVisible = false
         if (::keyboardView.isInitialized) render()
     }
 
@@ -129,6 +131,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         when (action) {
             is KeyAction.Text -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 commitText(outputFor(action.value, shiftState))
                 if (emojiVisible) rememberEmoji(action.value)
             }
@@ -202,6 +205,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             is KeyAction.EmojiCategorySelect -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 activeEmojiCategory = action.category
                 emojiVisible = true
                 symbolsVisible = false
@@ -209,6 +213,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             is KeyAction.SymbolsPage -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 symbolsPage = action.page
                 symbolsVisible = true
                 emojiVisible = false
@@ -216,26 +221,32 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             KeyAction.Space -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 commitText(" ")
             }
             KeyAction.Period -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 commitText(".")
             }
             KeyAction.Enter -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 performEnter()
             }
             KeyAction.Shift -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 toggleShift()
             }
             KeyAction.Backspace -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 deleteOne()
             }
             KeyAction.Symbols -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 symbolsVisible = true
                 symbolsPage = 1
                 emojiVisible = false
@@ -243,17 +254,20 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             KeyAction.Abc -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 symbolsVisible = false
                 emojiVisible = false
                 render()
             }
             KeyAction.Globe -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 switchInternalLanguage()
             }
             KeyAction.HideKeyboard -> requestHideSelf(0)
             KeyAction.EmojiPanel -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 emojiVisible = true
                 symbolsVisible = false
                 activeEmojiCategory = EmojiCategory.FACES
@@ -261,22 +275,22 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             KeyAction.Settings -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 openSettings()
             }
             KeyAction.Clipboard -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 showClipboard()
             }
             KeyAction.DismissClipboardSuggestion -> dismissClipboardSuggestion()
             KeyAction.OneHandedKeyboard -> {
-                morePanelVisible = false
-                oneHandedSide = OneHandedSide.RIGHT
-                symbolsVisible = false
-                emojiVisible = false
-                render()
+                oneHandedChooserVisible = true
+                keyboardView.showOneHandedChooser(KeyboardLayouts.forMode(settings.activeMode()).toolbar, oneHandedSide)
             }
             is KeyAction.SetOneHandedSide -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 oneHandedSide = action.side
                 symbolsVisible = false
                 emojiVisible = false
@@ -284,11 +298,13 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             KeyAction.ExitOneHandedKeyboard -> {
                 morePanelVisible = false
+                oneHandedChooserVisible = false
                 oneHandedSide = OneHandedSide.NONE
                 render()
             }
             KeyAction.More -> {
                 morePanelVisible = !morePanelVisible
+                oneHandedChooserVisible = false
                 symbolsVisible = false
                 emojiVisible = false
                 if (morePanelVisible) {
@@ -394,6 +410,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         symbolsVisible = false
         emojiVisible = false
         morePanelVisible = false
+        oneHandedChooserVisible = false
         shiftState = ShiftState.LOWERCASE
         render()
     }

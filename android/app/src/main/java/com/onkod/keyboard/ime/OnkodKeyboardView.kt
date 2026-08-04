@@ -137,6 +137,27 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         addKeyboardView(row)
     }
 
+    fun showOneHandedChooser(toolbarKeys: List<KeyboardKey>, currentSide: OneHandedSide) {
+        removeAllViews()
+        keyboardHost = null
+        orientation = VERTICAL
+        setPadding(8.dp, 8.dp, 8.dp, bottomSafePadding())
+        val palette = palette(settings.theme)
+        setBackgroundColor(palette.background)
+        addToolbar(toolbarKeys, palette, emojiVisible = false)
+
+        val row = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.TOP or Gravity.START
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, normalKeyboardBodyHeight())
+            setPadding(10.dp, 12.dp, 10.dp, 0)
+        }
+        row.addView(moreChoiceTile("↙↗", "Normal\nkeyboard", KeyAction.ExitOneHandedKeyboard, palette, selected = currentSide == OneHandedSide.NONE))
+        row.addView(moreChoiceTile("‹", "Left\nhand", KeyAction.SetOneHandedSide(OneHandedSide.LEFT), palette, selected = currentSide == OneHandedSide.LEFT))
+        row.addView(moreChoiceTile("›", "Right\nhand", KeyAction.SetOneHandedSide(OneHandedSide.RIGHT), palette, selected = currentSide == OneHandedSide.RIGHT))
+        addKeyboardView(row)
+    }
+
     private fun clipLabel(value: String): String =
         value.replace(Regex("\\s+"), " ").let { if (it.length > 54) "${it.take(54)}…" else it }
 
@@ -342,6 +363,53 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
                     radius = 34.dp.toFloat()
                 )
                 scaleType = ImageView.ScaleType.CENTER
+                layoutParams = LayoutParams(68.dp, 68.dp)
+                setOnClickListener {
+                    feedback()
+                    listener?.onKey(action)
+                }
+            })
+            addView(TextView(context).apply {
+                text = label
+                setTextColor(palette.text)
+                textSize = 16f
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = 8.dp
+                }
+                setOnClickListener {
+                    feedback()
+                    listener?.onKey(action)
+                }
+            })
+        }
+
+    private fun moreChoiceTile(
+        icon: String,
+        label: String,
+        action: KeyAction,
+        palette: Palette,
+        selected: Boolean
+    ): LinearLayout =
+        LinearLayout(context).apply {
+            orientation = VERTICAL
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            layoutParams = LayoutParams(120.dp, LayoutParams.MATCH_PARENT).apply {
+                rightMargin = 16.dp
+            }
+            addView(TextView(context).apply {
+                text = icon
+                contentDescription = label.replace("\n", " ")
+                setTextColor(if (selected) palette.accent else palette.text)
+                textSize = 34f
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                background = KeyDrawable(
+                    normalColor = if (selected) toolbarPressedColor(palette) else palette.functionKey,
+                    pressedColor = palette.pressed,
+                    radius = 34.dp.toFloat()
+                )
                 layoutParams = LayoutParams(68.dp, 68.dp)
                 setOnClickListener {
                     feedback()
