@@ -652,13 +652,12 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         TextView(context).apply {
             val isEmojiCategory = key.action is KeyAction.EmojiCategorySelect
             val isSpace = key.action == KeyAction.Space
-            val isGlobe = key.action == KeyAction.Globe
             val iconRes = keyIconRes(key.action)
             text = if (iconRes == null) iconLabel(key.label) else ""
             contentDescription = key.label
             gravity = Gravity.CENTER
             setTextColor(palette.text)
-            textSize = if (isGlobe) 24f else textSizeSp
+            textSize = textSizeSp
             typeface = if (flat) android.graphics.Typeface.DEFAULT else android.graphics.Typeface.DEFAULT_BOLD
             includeFontPadding = false
             minHeight = 42.dp
@@ -679,10 +678,9 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             }
             if (iconRes != null) {
                 context.getDrawable(iconRes)?.mutate()?.let { icon ->
-                    val iconSize = if (key.action == KeyAction.Enter) 30.dp else 28.dp
                     icon.setTint(palette.text)
-                    icon.setBounds(0, 0, iconSize, iconSize)
-                    setCompoundDrawables(null, icon, null, null)
+                    foreground = icon
+                    foregroundGravity = Gravity.CENTER
                 }
             }
             setOnClickListener {
@@ -763,6 +761,12 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     }
 
     private fun keyIconRes(action: KeyAction): Int? = when (action) {
+        KeyAction.EmojiPanel -> R.drawable.ic_toolbar_emoji
+        KeyAction.Settings -> R.drawable.ic_toolbar_settings
+        KeyAction.Clipboard -> R.drawable.ic_toolbar_clipboard
+        KeyAction.More -> R.drawable.ic_toolbar_more
+        KeyAction.Shift -> R.drawable.ic_key_shift
+        KeyAction.Backspace -> R.drawable.ic_key_backspace
         KeyAction.Globe -> R.drawable.ic_key_globe
         KeyAction.Enter -> R.drawable.ic_key_enter
         else -> null
