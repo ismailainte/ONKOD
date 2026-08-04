@@ -207,7 +207,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             orientation = VERTICAL
         }
         emojiRows(activeCategory, recentEmojis).forEach { row ->
-            grid.addView(keyRow(row.map { emoji -> KeyboardKey(emoji, KeyAction.Text(emoji)) }, palette, 46.dp))
+            grid.addView(keyRow(row.map { emoji -> KeyboardKey(emoji, KeyAction.Text(emoji)) }, palette, 46.dp, flatTextKeys = true))
         }
         scroller.addView(grid)
         addView(scroller)
@@ -337,15 +337,19 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     private fun rowsOf(vararg items: String): List<List<String>> = items.toList().chunked(8)
 
     private fun addKeyRow(keys: List<KeyboardKey>, palette: Palette, height: Int) {
-        addView(keyRow(keys, palette, height))
+        addView(keyRow(keys, palette, height, flatTextKeys = false))
     }
 
-    private fun keyRow(keys: List<KeyboardKey>, palette: Palette, height: Int): LinearLayout {
+    private fun keyRow(keys: List<KeyboardKey>, palette: Palette, height: Int, flatTextKeys: Boolean): LinearLayout {
         val row = row(height)
         keys.forEach { key ->
             val function = key.action !is KeyAction.Text
-            val size = if (key.label.length > 1 && key.label != "Somali") 12f else 16f
-            row.addView(keyView(key, palette, function, size))
+            val size = when {
+                flatTextKeys -> 22f
+                key.label.length > 1 && key.label != "Somali" -> 12f
+                else -> 16f
+            }
+            row.addView(keyView(key, palette, function, size, flat = flatTextKeys && !function))
         }
         return row
     }
@@ -358,7 +362,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         }
     }
 
-    private fun keyView(key: KeyboardKey, palette: Palette, function: Boolean, textSizeSp: Float): TextView =
+    private fun keyView(key: KeyboardKey, palette: Palette, function: Boolean, textSizeSp: Float, flat: Boolean = false): TextView =
         TextView(context).apply {
             val isEmojiCategory = key.action is KeyAction.EmojiCategorySelect
             val isSpace = key.action == KeyAction.Space
@@ -368,18 +372,20 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             gravity = Gravity.CENTER
             setTextColor(palette.text)
             textSize = if (isGlobe) 24f else textSizeSp
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            typeface = if (flat) android.graphics.Typeface.DEFAULT else android.graphics.Typeface.DEFAULT_BOLD
             includeFontPadding = false
             minHeight = 42.dp
-            background = KeyDrawable(
-                normalColor = if (function) palette.functionKey else palette.key,
-                pressedColor = palette.pressed,
-                radius = when {
-                    isEmojiCategory -> 22.dp.toFloat()
-                    isSpace -> 14.dp.toFloat()
-                    else -> 12.dp.toFloat()
-                }
-            )
+            if (!flat) {
+                background = KeyDrawable(
+                    normalColor = if (function) palette.functionKey else palette.key,
+                    pressedColor = palette.pressed,
+                    radius = when {
+                        isEmojiCategory -> 22.dp.toFloat()
+                        isSpace -> 14.dp.toFloat()
+                        else -> 12.dp.toFloat()
+                    }
+                )
+            }
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, key.weight).apply {
                 leftMargin = if (isEmojiCategory) 4.dp else 3.dp
                 rightMargin = if (isEmojiCategory) 4.dp else 3.dp
@@ -530,13 +536,13 @@ private data class EmojiCategoryTab(
 )
 
 private val emojiCategories = listOf(
-    EmojiCategoryTab(EmojiCategory.HISTORY, "◷"),
+    EmojiCategoryTab(EmojiCategory.HISTORY, "◴"),
     EmojiCategoryTab(EmojiCategory.FACES, "☺"),
-    EmojiCategoryTab(EmojiCategory.ANIMALS, "🐶"),
-    EmojiCategoryTab(EmojiCategory.FOOD, "🍎"),
+    EmojiCategoryTab(EmojiCategory.ANIMALS, "♧"),
+    EmojiCategoryTab(EmojiCategory.FOOD, "♨"),
     EmojiCategoryTab(EmojiCategory.HOME, "⌂"),
-    EmojiCategoryTab(EmojiCategory.SPORTS, "🏀"),
-    EmojiCategoryTab(EmojiCategory.BOOKS, "📖"),
+    EmojiCategoryTab(EmojiCategory.SPORTS, "◉"),
+    EmojiCategoryTab(EmojiCategory.BOOKS, "▯"),
     EmojiCategoryTab(EmojiCategory.SYMBOLS, "!?"),
     EmojiCategoryTab(EmojiCategory.FLAGS, "⚑")
 )
