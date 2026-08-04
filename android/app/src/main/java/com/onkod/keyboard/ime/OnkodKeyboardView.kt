@@ -692,7 +692,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         } else {
             0
         }
-        return maxOf(72.dp, navigationInset + 16.dp)
+        return if (navigationInset > 0) 12.dp else 8.dp
     }
 }
 
