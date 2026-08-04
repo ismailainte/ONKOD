@@ -80,6 +80,24 @@ class ClipboardStore(context: Context) {
         return emptyList()
     }
 
+    fun readLastAutomaticallySuggestedClipboardId(): String? =
+        preferences.getString("last_auto_suggested_clipboard_id", null)
+
+    fun rememberAutomaticallySuggestedClipboardId(id: String) {
+        preferences.edit()
+            .putString("last_auto_suggested_clipboard_id", id)
+            .apply()
+    }
+
+    fun readLastConsumedClipboardId(): String? =
+        preferences.getString("last_consumed_clipboard_id", null)
+
+    fun rememberConsumedClipboardId(id: String) {
+        preferences.edit()
+            .putString("last_consumed_clipboard_id", id)
+            .apply()
+    }
+
     private fun writeImages(values: List<ClipboardImage>) {
         val array = JSONArray()
         values.forEach { image ->

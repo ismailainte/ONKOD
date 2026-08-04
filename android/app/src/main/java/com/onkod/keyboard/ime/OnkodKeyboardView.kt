@@ -51,7 +51,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         activeEmojiCategory: EmojiCategory,
         recentEmojis: List<String>,
         oneHandedSide: OneHandedSide = OneHandedSide.NONE,
-        clipboardImagePreview: ClipboardImage? = null
+        clipboardImagePreview: ClipboardImage? = null,
+        clipboardSuggestion: ClipboardSuggestion? = null
     ) {
         this.settings = settings
         activeLongPressOptions = layout.longPressOptions
@@ -80,6 +81,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             if (oneHandedSide == OneHandedSide.LEFT) addView(sidePanel)
         }
 
+        clipboardSuggestion?.let { addClipboardSuggestion(it, palette) }
         if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible, clipboardImagePreview)
         when {
             emojiVisible -> addEmojiPanel(palette, activeEmojiCategory, recentEmojis)
@@ -140,6 +142,96 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
 
     private fun clipLabel(value: String): String =
         value.replace(Regex("\\s+"), " ").let { if (it.length > 54) "${it.take(54)}…" else it }
+
+    private fun addClipboardSuggestion(suggestion: ClipboardSuggestion, palette: Palette) {
+        val row = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = KeyDrawable(
+                normalColor = toolbarSurfaceColor(palette),
+                pressedColor = toolbarSurfaceColor(palette),
+                radius = 16.dp.toFloat()
+            )
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 42.dp).apply {
+                bottomMargin = 6.dp
+            }
+            elevation = 0f
+            translationZ = 0f
+            stateListAnimator = null
+        }
+
+        val pasteAction = when (suggestion) {
+            is ClipboardSuggestion.Text -> KeyAction.PasteText(suggestion.value)
+            is ClipboardSuggestion.Image -> KeyAction.InsertClipboardImage(suggestion.image)
+        }
+
+        val content = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER
+            background = KeyDrawable(
+                normalColor = Color.TRANSPARENT,
+                pressedColor = palette.pressed,
+                radius = 14.dp.toFloat()
+            )
+            setPadding(12.dp, 0, 12.dp, 0)
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply {
+                rightMargin = 6.dp
+            }
+            setOnClickListener {
+                feedback()
+                listener?.onKey(pasteAction)
+            }
+        }
+
+        when (suggestion) {
+            is ClipboardSuggestion.Text -> {
+                content.addView(TextView(context).apply {
+                    text = if (suggestion.sensitive) "Sensitive content" else clipLabel(suggestion.value)
+                    setTextColor(palette.text)
+                    textSize = 15f
+                    gravity = Gravity.CENTER
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                    includeFontPadding = false
+                    layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                })
+            }
+            is ClipboardSuggestion.Image -> {
+                content.addView(ImageView(context).apply {
+                    contentDescription = "Clipboard image"
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setImageURI(Uri.parse(suggestion.image.uri))
+                    background = KeyDrawable(
+                        normalColor = palette.key,
+                        pressedColor = palette.key,
+                        radius = 10.dp.toFloat()
+                    )
+                    clipToOutline = true
+                    layoutParams = LayoutParams(42.dp, 34.dp)
+                })
+            }
+        }
+
+        row.addView(content)
+        row.addView(TextView(context).apply {
+            text = "×"
+            setTextColor(palette.text)
+            textSize = 22f
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            background = KeyDrawable(
+                normalColor = Color.TRANSPARENT,
+                pressedColor = toolbarPressedColor(palette),
+                radius = 12.dp.toFloat()
+            )
+            layoutParams = LayoutParams(42.dp, LayoutParams.MATCH_PARENT)
+            setOnClickListener {
+                feedback()
+                listener?.onKey(KeyAction.DismissClipboardSuggestion)
+            }
+        })
+        addKeyboardView(row)
+    }
 
     private fun addClipboardTopBar(
         currentText: String?,

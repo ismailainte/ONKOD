@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.inputmethodservice.InputMethodService
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.util.Log
 import android.view.KeyEvent
@@ -31,9 +33,18 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private val selectedClipboardClips = linkedSetOf<String>()
     private var oneHandedSide = OneHandedSide.NONE
     private var clipboardImagePreview: ClipboardImage? = null
-    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
-        refreshClipboardImagePreview()
+    private var clipboardSuggestion: ClipboardSuggestion? = null
+    private var currentClipboardId: String? = null
+    private var activePackageName: String? = null
+    private var clipboardListenerRegistered = false
+    private val clipboardHandler = Handler(Looper.getMainLooper())
+    private val dismissClipboardSuggestionRunnable = Runnable {
+        consumeClipboardSuggestion(renderNow = false)
+        logClipboardDebug("suggestion timeout")
         if (::keyboardView.isInitialized) render()
+    }
+    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+        handleClipboardChanged()
     }
     private val backspaceRepeater = BackspaceRepeater { deleteOne() }
 
@@ -41,17 +52,17 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         super.onCreate()
         settingsStore = SettingsStore(this)
         clipboardStore = ClipboardStore(this)
-        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).addPrimaryClipChangedListener(clipboardListener)
     }
 
     override fun onDestroy() {
-        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).removePrimaryClipChangedListener(clipboardListener)
+        unregisterClipboardListener()
         super.onDestroy()
     }
 
     override fun onCreateInputView(): View {
         settings = settingsStore.read()
-        refreshClipboardImagePreview()
+        registerClipboardListener()
+        inspectClipboardForSuggestion()
         keyboardView = OnkodKeyboardView(this)
         keyboardView.listener = this
         render()
@@ -63,21 +74,45 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         settings = settingsStore.read()
-        refreshClipboardImagePreview()
+        registerClipboardListener()
+        if (activePackageName != null && activePackageName != info?.packageName) {
+            consumeClipboardSuggestion(renderNow = false)
+        }
+        activePackageName = info?.packageName
+        inspectClipboardForSuggestion()
         shiftState = ShiftState.LOWERCASE
         symbolsVisible = false
         emojiVisible = false
         if (::keyboardView.isInitialized) render()
     }
 
+    override fun onWindowShown() {
+        super.onWindowShown()
+        registerClipboardListener()
+        inspectClipboardForSuggestion()
+        if (::keyboardView.isInitialized) render()
+    }
+
+    override fun onWindowHidden() {
+        consumeClipboardSuggestion(renderNow = false)
+        unregisterClipboardListener()
+        super.onWindowHidden()
+    }
+
     override fun onKey(action: KeyAction) {
+        if (clipboardSuggestion != null) {
+            consumeClipboardSuggestion(renderNow = false)
+        }
         when (action) {
             is KeyAction.Text -> {
                 commitText(outputFor(action.value, shiftState))
                 if (emojiVisible) rememberEmoji(action.value)
             }
             is KeyAction.PasteText -> {
-                commitRawText(action.value)
+                logClipboardDebug("paste clicked text")
+                val success = commitRawText(action.value)
+                logClipboardDebug("commit result text=$success")
+                dismissClipboardSuggestion()
             }
             is KeyAction.InsertClipboardImage -> {
                 commitClipboardImage(action.image)
@@ -178,6 +213,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             }
             KeyAction.Settings -> openSettings()
             KeyAction.Clipboard -> showClipboard()
+            KeyAction.DismissClipboardSuggestion -> dismissClipboardSuggestion()
             KeyAction.OneHandedKeyboard -> {
                 oneHandedSide = OneHandedSide.RIGHT
                 render()
@@ -214,9 +250,8 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         }
     }
 
-    private fun commitRawText(value: String) {
-        currentInputConnection?.commitText(value, 1)
-    }
+    private fun commitRawText(value: String): Boolean =
+        currentInputConnection?.commitText(value, 1) == true
 
     private fun showClipboard(readSystemClipboard: Boolean = true) {
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
@@ -317,19 +352,120 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             activeEmojiCategory = activeEmojiCategory,
             recentEmojis = recentEmojis,
             oneHandedSide = oneHandedSide,
-            clipboardImagePreview = clipboardImagePreview
+            clipboardImagePreview = clipboardImagePreview,
+            clipboardSuggestion = clipboardSuggestion
         )
     }
 
-    private fun refreshClipboardImagePreview() {
-        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        val image = readClipboardImage(clipboard)
-        clipboardImagePreview = image
-        if (image != null) clipboardStore.rememberImage(image)
+    private fun registerClipboardListener() {
+        if (clipboardListenerRegistered) return
+        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).addPrimaryClipChangedListener(clipboardListener)
+        clipboardListenerRegistered = true
     }
 
+    private fun unregisterClipboardListener() {
+        if (!clipboardListenerRegistered) return
+        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).removePrimaryClipChangedListener(clipboardListener)
+        clipboardListenerRegistered = false
+    }
+
+    private fun handleClipboardChanged() {
+        logClipboardDebug("clipboard changed")
+        inspectClipboardForSuggestion()
+        if (::keyboardView.isInitialized) render()
+    }
+
+    private fun inspectClipboardForSuggestion() {
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val suggestion = readClipboardSuggestion(clipboard)
+        clipboardSuggestion = suggestion
+        currentClipboardId = suggestion?.clipboardId()
+        clipboardImagePreview = (suggestion as? ClipboardSuggestion.Image)?.image
+        when (suggestion) {
+            is ClipboardSuggestion.Image -> {
+                clipboardStore.rememberImage(suggestion.image)
+                clipboardStore.rememberAutomaticallySuggestedClipboardId(suggestion.id)
+                logClipboardDebug("image detected mime=${suggestion.image.mimeType}")
+                logClipboardDebug("suggestion shown image")
+            }
+            is ClipboardSuggestion.Text -> {
+                clipboardStore.rememberRecent(suggestion.value)
+                clipboardStore.rememberAutomaticallySuggestedClipboardId(suggestion.id)
+                logClipboardDebug("text detected")
+                logClipboardDebug("suggestion shown text")
+            }
+            null -> logClipboardDebug("no supported clipboard item")
+        }
+        clipboardHandler.removeCallbacks(dismissClipboardSuggestionRunnable)
+        if (suggestion != null) {
+            clipboardHandler.postDelayed(dismissClipboardSuggestionRunnable, CLIPBOARD_SUGGESTION_TIMEOUT_MS)
+        }
+    }
+
+    private fun dismissClipboardSuggestion() {
+        consumeClipboardSuggestion(renderNow = false)
+        currentClipboardId = null
+        clipboardHandler.removeCallbacks(dismissClipboardSuggestionRunnable)
+        if (::keyboardView.isInitialized) render()
+    }
+
+    private fun readClipboardSuggestion(clipboard: ClipboardManager): ClipboardSuggestion? {
+        val clip = runCatching { clipboard.primaryClip }.getOrNull() ?: return null
+        val description = clip.description
+        if (description != null) logClipboardDebug("mime=${clipMimeTypes(description)}")
+        readClipboardImage(clipboard)?.let { image ->
+            val id = ClipboardIdentity.image(
+                mimeTypes = clipMimeTypes(description),
+                mimeType = image.mimeType,
+                uri = image.uri,
+                timestamp = description?.safeTimestamp()
+            )
+            if (isClipboardIdentityAlreadyUsed(id)) return null
+            return ClipboardSuggestion.Image(image, id)
+        }
+        val sensitive = description?.isSensitiveClipboardContent() == true
+        for (index in 0 until clip.itemCount) {
+            val text = clip.getItemAt(index).text?.toString()?.takeIf { it.isNotBlank() } ?: continue
+            val id = ClipboardIdentity.text(
+                mimeTypes = clipMimeTypes(description),
+                value = text,
+                timestamp = description?.safeTimestamp()
+            )
+            if (isClipboardIdentityAlreadyUsed(id)) return null
+            return ClipboardSuggestion.Text(text, sensitive, id)
+        }
+        return null
+    }
+
+    private fun isClipboardIdentityAlreadyUsed(id: String): Boolean =
+        (currentClipboardId != id && clipboardStore.readLastAutomaticallySuggestedClipboardId() == id) ||
+            clipboardStore.readLastConsumedClipboardId() == id
+
+    private fun consumeClipboardSuggestion(renderNow: Boolean = true) {
+        val id = clipboardSuggestion?.clipboardId() ?: currentClipboardId
+        if (id != null) clipboardStore.rememberConsumedClipboardId(id)
+        clipboardSuggestion = null
+        currentClipboardId = null
+        clipboardHandler.removeCallbacks(dismissClipboardSuggestionRunnable)
+        if (renderNow && ::keyboardView.isInitialized) render()
+    }
+
+    private fun ClipboardSuggestion.clipboardId(): String = when (this) {
+        is ClipboardSuggestion.Text -> id
+        is ClipboardSuggestion.Image -> id
+    }
+
+    private fun ClipDescription.isSensitiveClipboardContent(): Boolean {
+        val extras = extras ?: return false
+        return extras.getBoolean("android.content.extra.IS_SENSITIVE", false) ||
+            extras.getBoolean("androidx.core.content.extra.IS_SENSITIVE", false)
+    }
+
+    private fun ClipDescription.safeTimestamp(): Long =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) timestamp else 0L
+
     private fun readClipboardImage(clipboard: ClipboardManager): ClipboardImage? {
-        val clip = clipboard.primaryClip ?: return null
+        val clip = runCatching { clipboard.primaryClip }.getOrNull() ?: return null
         val description = clip.description ?: return null
         for (index in 0 until clip.itemCount) {
             val uri = clip.getItemAt(index).uri ?: continue
@@ -340,14 +476,23 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     }
 
     private fun imageMimeTypeFor(uri: Uri, description: ClipDescription): String? {
-        contentResolver.getType(uri)
+        runCatching { contentResolver.getType(uri) }.getOrNull()
             ?.takeIf { it.startsWith("image/") && it != "image/*" }
             ?.let { return normalizeImageMimeType(it) }
         for (index in 0 until description.mimeTypeCount) {
             val mimeType = description.getMimeType(index)
             if (mimeType.startsWith("image/") && mimeType != "image/*") return normalizeImageMimeType(mimeType)
         }
+        inferImageMimeTypeFromUri(uri)?.let { return it }
         return null
+    }
+
+    private fun inferImageMimeTypeFromUri(uri: Uri): String? = when {
+        uri.toString().substringBefore('?').lowercase().endsWith(".png") -> "image/png"
+        uri.toString().substringBefore('?').lowercase().endsWith(".jpg") -> "image/jpeg"
+        uri.toString().substringBefore('?').lowercase().endsWith(".jpeg") -> "image/jpeg"
+        uri.toString().substringBefore('?').lowercase().endsWith(".webp") -> "image/webp"
+        else -> null
     }
 
     private fun normalizeImageMimeType(mimeType: String): String = when (mimeType.lowercase()) {
@@ -356,10 +501,12 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     }
 
     private fun commitClipboardImage(image: ClipboardImage) {
+        logClipboardDebug("paste clicked image")
         val editorInfo = currentInputEditorInfo
         val connection = currentInputConnection
         if (editorInfo == null || connection == null) {
             keyboardView.showMessagePanel("This chat does not accept images from the keyboard.")
+            logClipboardDebug("commit result image=false")
             return
         }
         val supportedMimeTypes = editorInfo.contentMimeTypes.orEmpty()
@@ -370,6 +517,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         if (!acceptsImage) {
             keyboardView.showMessagePanel("This chat does not accept images from the keyboard.")
             logImageCommitAttempt(editorInfo.packageName, supportedMimeTypes, image.mimeType, false)
+            logClipboardDebug("commit result image=false")
             return
         }
 
@@ -388,9 +536,10 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             null
         )
         logImageCommitAttempt(editorInfo.packageName, supportedMimeTypes, image.mimeType, success)
+        logClipboardDebug("commit result image=$success")
         if (success) {
             clipboardImagePreview = null
-            render()
+            dismissClipboardSuggestion()
         } else {
             keyboardView.showMessagePanel("This chat does not accept images from the keyboard.")
         }
@@ -418,11 +567,23 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         )
     }
 
+    private fun clipMimeTypes(description: ClipDescription): String =
+        (0 until description.mimeTypeCount).joinToString { index -> description.getMimeType(index) }
+
+    private fun logClipboardDebug(message: String) {
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+        Log.d("OnkodClipboard", message)
+    }
+
     private fun rememberEmoji(value: String) {
         recentEmojis.remove(value)
         recentEmojis.add(0, value)
         if (recentEmojis.size > 48) {
             recentEmojis.removeAt(recentEmojis.lastIndex)
         }
+    }
+
+    private companion object {
+        const val CLIPBOARD_SUGGESTION_TIMEOUT_MS = 12_000L
     }
 }

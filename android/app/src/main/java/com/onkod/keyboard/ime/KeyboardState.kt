@@ -34,6 +34,11 @@ data class ClipboardImage(
     val mimeType: String
 )
 
+sealed class ClipboardSuggestion {
+    data class Text(val value: String, val sensitive: Boolean = false, val id: String) : ClipboardSuggestion()
+    data class Image(val image: ClipboardImage, val id: String) : ClipboardSuggestion()
+}
+
 sealed class KeyAction {
     data class Text(val value: String) : KeyAction()
     data class PasteText(val value: String) : KeyAction()
@@ -62,6 +67,7 @@ sealed class KeyAction {
     data object EmojiPanel : KeyAction()
     data object Settings : KeyAction()
     data object Clipboard : KeyAction()
+    data object DismissClipboardSuggestion : KeyAction()
     data object OneHandedKeyboard : KeyAction()
     data class SetOneHandedSide(val side: OneHandedSide) : KeyAction()
     data object ExitOneHandedKeyboard : KeyAction()
