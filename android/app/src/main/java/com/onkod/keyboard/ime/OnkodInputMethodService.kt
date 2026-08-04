@@ -29,6 +29,8 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         return keyboardView
     }
 
+    override fun onEvaluateInputViewShown(): Boolean = true
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         settings = settingsStore.read()
