@@ -51,7 +51,6 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         activeEmojiCategory: EmojiCategory,
         recentEmojis: List<String>,
         oneHandedSide: OneHandedSide = OneHandedSide.NONE,
-        clipboardImagePreview: ClipboardImage? = null,
         clipboardSuggestion: ClipboardSuggestion? = null
     ) {
         this.settings = settings
@@ -82,7 +81,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         }
 
         clipboardSuggestion?.let { addClipboardSuggestion(it, palette) }
-        if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible, clipboardImagePreview)
+        if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible)
         when {
             emojiVisible -> addEmojiPanel(palette, activeEmojiCategory, recentEmojis)
             symbolsVisible -> addSymbolsPanel(palette, symbolsPage, layout.spaceLabel)
@@ -125,7 +124,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         setPadding(8.dp, 8.dp, 8.dp, bottomSafePadding())
         val palette = palette(settings.theme)
         setBackgroundColor(palette.background)
-        addToolbar(toolbarKeys, palette, emojiVisible = false, clipboardImagePreview = null)
+        addToolbar(toolbarKeys, palette, emojiVisible = false)
 
         val row = LinearLayout(context).apply {
             orientation = HORIZONTAL
@@ -577,8 +576,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
     private fun addToolbar(
         keys: List<KeyboardKey>,
         palette: Palette,
-        emojiVisible: Boolean,
-        clipboardImagePreview: ClipboardImage?
+        emojiVisible: Boolean
     ) {
         val row = row(height = 38.dp)
         row.background = KeyDrawable(
@@ -594,32 +592,8 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
             }
             row.addView(keyView(toolbarKey, palette, function = true, textSizeSp = 14f, toolbarIcon = true))
         }
-        clipboardImagePreview?.let { image ->
-            row.addView(toolbarImagePreview(image, palette))
-        }
         addView(row)
     }
-
-    private fun toolbarImagePreview(image: ClipboardImage, palette: Palette): ImageView =
-        ImageView(context).apply {
-            contentDescription = "Clipboard image"
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            setImageURI(Uri.parse(image.uri))
-            background = KeyDrawable(
-                normalColor = toolbarPressedColor(palette),
-                pressedColor = palette.pressed,
-                radius = 10.dp.toFloat()
-            )
-            clipToOutline = true
-            layoutParams = LayoutParams(44.dp, LayoutParams.MATCH_PARENT).apply {
-                leftMargin = 3.dp
-                rightMargin = 3.dp
-            }
-            setOnClickListener {
-                feedback()
-                listener?.onKey(KeyAction.InsertClipboardImage(image))
-            }
-        }
 
     private fun addClipboardImageSection(images: List<ClipboardImage>, palette: Palette) {
         if (images.isEmpty()) return

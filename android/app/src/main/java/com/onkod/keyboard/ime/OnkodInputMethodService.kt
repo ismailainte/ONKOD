@@ -40,7 +40,6 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     private val selectedClipboardClips = linkedSetOf<String>()
     private var oneHandedSide = OneHandedSide.NONE
     private var morePanelVisible = false
-    private var clipboardImagePreview: ClipboardImage? = null
     private var clipboardSuggestion: ClipboardSuggestion? = null
     private var currentClipboardId: String? = null
     private var activePackageName: String? = null
@@ -325,7 +324,6 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         val image = if (readSystemClipboard) readClipboardImage(clipboard) else null
         if (image != null) {
-            clipboardImagePreview = image
             clipboardStore.rememberImage(image)
         }
         val text = if (readSystemClipboard && image == null) {
@@ -421,7 +419,6 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
             activeEmojiCategory = activeEmojiCategory,
             recentEmojis = recentEmojis,
             oneHandedSide = oneHandedSide,
-            clipboardImagePreview = clipboardImagePreview,
             clipboardSuggestion = clipboardSuggestion
         )
     }
@@ -560,7 +557,6 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         val suggestion = readClipboardSuggestion(clipboard)
         clipboardSuggestion = suggestion
         currentClipboardId = suggestion?.clipboardId()
-        clipboardImagePreview = (suggestion as? ClipboardSuggestion.Image)?.image
         when (suggestion) {
             is ClipboardSuggestion.Image -> {
                 clipboardStore.rememberImage(suggestion.image)
@@ -598,7 +594,7 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
                 mimeTypes = clipMimeTypes(description),
                 mimeType = image.mimeType,
                 uri = image.uri,
-                timestamp = description?.safeTimestamp()
+                timestamp = null
             )
             if (isClipboardIdentityAlreadyUsed(id)) return null
             return ClipboardSuggestion.Image(image, id)
@@ -718,7 +714,6 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
         logImageCommitAttempt(editorInfo.packageName, supportedMimeTypes, image.mimeType, success)
         logClipboardDebug("commit result image=$success")
         if (success) {
-            clipboardImagePreview = null
             dismissClipboardSuggestion()
         } else {
             keyboardView.showMessagePanel("This chat does not accept images from the keyboard.")
