@@ -3,6 +3,8 @@ package com.onkod.keyboard.ime
 import android.content.ClipboardManager
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
+import android.text.InputType
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -220,11 +222,28 @@ class OnkodInputMethodService : InputMethodService(), OnkodKeyboardView.Listener
     }
 
     private fun performEnter() {
-        val actionId = currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
-        if (actionId != EditorInfo.IME_ACTION_NONE) {
-            currentInputConnection?.performEditorAction(actionId)
-        } else {
-            currentInputConnection?.commitText("\n", 1)
+        val connection = currentInputConnection ?: return
+        val editorInfo = currentInputEditorInfo
+        val actionId = editorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
+        val inputType = editorInfo?.inputType ?: 0
+        val isMultiline = inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
+        val classType = inputType and InputType.TYPE_MASK_CLASS
+        val variation = inputType and InputType.TYPE_MASK_VARIATION
+        val isPassword = classType == InputType.TYPE_CLASS_TEXT && variation in setOf(
+            InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+        ) || classType == InputType.TYPE_CLASS_NUMBER && variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        val hasEditorAction = actionId != EditorInfo.IME_ACTION_NONE &&
+            actionId != EditorInfo.IME_ACTION_UNSPECIFIED
+
+        when {
+            hasEditorAction -> connection.performEditorAction(actionId)
+            isMultiline && !isPassword -> connection.commitText("\n", 1)
+            else -> {
+                connection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+                connection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+            }
         }
     }
 
