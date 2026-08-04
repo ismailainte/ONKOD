@@ -213,7 +213,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         })
         row.addView(clipboardTopButton(R.drawable.ic_clipboard_pin, "Pin clipboard text", KeyAction.StartClipboardPinSelection, palette, 0.8f))
         row.addView(clipboardTopButton(R.drawable.ic_clipboard_delete, "Delete clipboard text", KeyAction.StartClipboardDeleteSelection, palette, 0.8f))
-        addView(row)
+        addKeyboardView(row)
     }
 
     private fun clipboardTopButton(iconRes: Int, description: String, action: KeyAction, palette: Palette, weight: Float): ImageButton =
