@@ -44,7 +44,7 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         val palette = palette(settings.theme)
         setBackgroundColor(palette.background)
 
-        if (settings.toolbar) addToolbar(layout.toolbar, palette)
+        if (settings.toolbar) addToolbar(layout.toolbar, palette, emojiVisible)
         when {
             emojiVisible -> addEmojiPanel(palette)
             symbolsVisible -> addSymbolsPanel(palette)
@@ -56,10 +56,15 @@ class OnkodKeyboardView(context: Context) : LinearLayout(context) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
-    private fun addToolbar(keys: List<KeyboardKey>, palette: Palette) {
+    private fun addToolbar(keys: List<KeyboardKey>, palette: Palette, emojiVisible: Boolean) {
         val row = row(height = 38.dp)
         keys.forEach { key ->
-            row.addView(keyView(key, palette, function = true, textSizeSp = 12f))
+            val toolbarKey = if (emojiVisible && key.action == KeyAction.EmojiPanel) {
+                KeyboardKey("ABC", KeyAction.Abc, key.weight)
+            } else {
+                key
+            }
+            row.addView(keyView(toolbarKey, palette, function = true, textSizeSp = 12f))
         }
         addView(row)
     }
