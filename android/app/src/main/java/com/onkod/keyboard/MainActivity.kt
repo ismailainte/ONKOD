@@ -1,7 +1,10 @@
 package com.onkod.keyboard
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
@@ -41,6 +44,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = SettingsStore(this)
+        requestImagePermissionIfNeeded()
         setContent { OnkodApp() }
     }
 
@@ -161,9 +165,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun isKeyboardEnabled(): Boolean {
-        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_INPUT_METHODS).orEmpty()
-        return enabled.contains(packageName)
+        val manager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        return manager.enabledInputMethodList.any { it.packageName == packageName }
+    }
+
+    private fun requestImagePermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(permission), REQUEST_IMAGE_PERMISSION)
+        }
     }
 
     private enum class Screen { WELCOME, ENABLE, SELECT, LAYOUT, PREVIEW, PRIVACY, ABOUT }
+
+    private companion object {
+        const val REQUEST_IMAGE_PERMISSION = 1001
+    }
 }
