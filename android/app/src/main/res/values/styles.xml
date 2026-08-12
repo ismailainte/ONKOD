@@ -1,8 +1,0 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-  <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
-    <item name="android:enforceNavigationBarContrast" tools:targetApi="29">true</item>
-    <item name="android:statusBarColor">#ffffff</item>
-    <item name="android:navigationBarColor">#ffffff</item>
-    <item name="android:windowLightStatusBar">true</item>
-  </style>
-</resources>
